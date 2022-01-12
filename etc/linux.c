@@ -12,12 +12,12 @@ char *suffixes[] = { ".c", ".i", ".s", ".o", ".out", 0 };
 char inputs[256] = "";
 char *cpp[] = { LCCDIR "gcc/cpp",
 	"-U__GNUC__", "-D_POSIX_SOURCE", "-D__STDC__=1", "-D__STRICT_ANSI__",
-	"-Dunix", "-Di386", "-Dlinux",
+	"-Dunix", "-Di386", "-Dlinux", "-D__restrict=", "-std=c89", "-Drestrict=",
 	"-D__unix__", "-D__i386__", "-D__linux__", "-D__signed__=signed",
 	"$1", "$2", "$3", 0 };
 char *include[] = {"-I" LCCDIR "include", "-I" LCCDIR "gcc/include", "-I/usr/include", 0 };
 char *com[] = {LCCDIR "rcc", "-target=x86/linux", "$1", "$2", "$3", 0 };
-char *as[] = { "/usr/bin/as", "-o", "$3", "$1", "$2", 0 };
+char *as[] = { "/usr/bin/as", "-msyntax=intel", "-o", "$3", "$1", "$2", 0 };
 char *ld[] = {
 	/*  0 */ "/usr/bin/ld", "-m", "elf_i386", "-dynamic-linker",
 	/*  4 */ "/lib/ld-linux.so.2", "-o", "$3",
