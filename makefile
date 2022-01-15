@@ -2,9 +2,9 @@
 A=.a
 O=.o
 E=
-CC=cc
+CC=cc -m32
 CFLAGS=-g
-LDFLAGS=-g
+LDFLAGS=-g 
 LD=$(CC)
 AR=ar ruv
 RANLIB=ranlib
@@ -171,14 +171,14 @@ test:	$T8q.s \
 	$Tincr.s \
 	$Tinit.s \
 	$Tlimits.s \
-	$Tparanoia.s \
 	$Tsort.s \
 	$Tspill.s \
 	$Tstdarg.s \
 	$Tstruct.s \
 	$Tswitch.s \
 	$Twf1.s \
-	$Tyacc.s
+	$Tyacc.s \
+	$Tparanoia.s 
 
 $T8q.s:	tst/8q.c tst/8q.0 all;	@env BUILDDIR=$(BUILDDIR) TSTDIR=$(TSTDIR) src/run.sh $@
 $Tarray.s:	tst/array.c tst/array.0 all;	@env BUILDDIR=$(BUILDDIR) TSTDIR=$(TSTDIR) src/run.sh $@
@@ -265,7 +265,7 @@ RCCSRCS=src/alloc.c \
 	$Bx86linux.c \
 	$Bx86.c
 
-C=$Blcc -A -d0.6 -Wo-lccdir=$(BUILDDIR) -Isrc -I$(BUILDDIR)
+C=$Blcc -A -d0.6  -Isrc -I$(BUILDDIR)
 triple:	$B2rcc$E
 	strip $B1rcc$E $B2rcc$E
 	dd if=$B1rcc$E of=$Brcc1$E bs=512 skip=1

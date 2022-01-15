@@ -19,11 +19,14 @@ if [ ! -d "$target/$os" -o ! -d "$idir" ]; then
 fi
 
 C=`basename $1 .s`
-BUILDDIR=${BUILDDIR-.} LCC="${LCC-${BUILDDIR}/lcc} -Wo-lccdir=$BUILDDIR"
+BUILDDIR=${BUILDDIR-.} LCC="${LCC-${BUILDDIR}/lcc} -v"
 TSTDIR=${TSTDIR-${BUILDDIR}/$dir/tst}
 if [ ! -d $TSTDIR ]; then mkdir -p $TSTDIR; fi
 
-echo ${BUILDDIR}/rcc$EXE -target=$target/$os $1: 1>&2
+echo ---------------------
+echo DO $LCC -S -I$idir -Ualpha -Usun -Uvax -Umips -Ux86 \
+	-Wf-errout=$TSTDIR/$C.2 -D$target -Wf-g0 \
+	-Wf-target=$target/$os -o $1 tst/$C.c: 1>&2
 $LCC -S -I$idir -Ualpha -Usun -Uvax -Umips -Ux86 \
 	-Wf-errout=$TSTDIR/$C.2 -D$target -Wf-g0 \
 	-Wf-target=$target/$os -o $1 tst/$C.c
@@ -34,7 +37,7 @@ fi
 if [ -r $dir/tst/$C.sbk ]; then
 	if diff $dir/tst/$C.sbk $TSTDIR/$C.s; then exit 0; fi
 fi
-
+echo THEN $LCC -o $TSTDIR/$C$EXE $1: 1>&2
 case "$remotehost" in
 noexecute)	exit 0 ;;
 ""|"-")	$LCC -o $TSTDIR/$C$EXE $1; $TSTDIR/$C$EXE <tst/$C.0 >$TSTDIR/$C.1 ;;
