@@ -12,6 +12,7 @@ xx(symbolic/irix,symbolicIR) \
 xx(symbolic,     symbolicIR) \
 xx(bytecode,     bytecodeIR) \
 xx(m1,           m1IR) \
+xx(adam/std,     adamStdIR) \
 xx(null,         nullIR)
 
 #undef xx

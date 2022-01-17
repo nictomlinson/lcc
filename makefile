@@ -63,7 +63,8 @@ RCCOBJS=$Balloc$O \
 	$Bstab$O \
 	$Bx86$O \
 	$Bx86linux$O \
-	$Bm1$O
+	$Bm1$O \
+	$BadamStd$O
 
 $Brcc$E::	$Bmain$O $Blibrcc$A $(EXTRAOBJS)
 		$(LD) $(LDFLAGS) -o $@ $Bmain$O $(EXTRAOBJS) $Blibrcc$A $(EXTRALIBS)
@@ -110,6 +111,8 @@ $Bsparc$O:	$Bsparc.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bsparc.c
 $Bx86$O:	$Bx86.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86.c
 $Bx86linux$O:	$Bx86linux.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86linux.c
 $Bm1$O:	$Bm1.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bm1.c
+$BadamStd$O:	$BadamStd.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $BadamStd.c
+
 
 $Bdagcheck.c:	$Blburg$E src/dagcheck.md; $Blburg src/dagcheck.md $@
 $Balpha.c:	$Blburg$E src/alpha.md;    $Blburg src/alpha.md    $@
@@ -118,6 +121,7 @@ $Bsparc.c:	$Blburg$E src/sparc.md;    $Blburg src/sparc.md    $@
 $Bx86.c:	$Blburg$E src/x86.md;      $Blburg src/x86.md      $@
 $Bx86linux.c:	$Blburg$E src/x86linux.md; $Blburg src/x86linux.md $@
 $Bm1.c:	$Blburg$E src/m1.md; $Blburg src/m1.md $@
+$BadamStd.c:	$Blburg$E src/adamStd.md; $Blburg src/adamStd.md $@
 
 $Bbprint$E:	$Bbprint$O;		$(LD) $(LDFLAGS) -o $@ $Bbprint$O 
 $Bops$E:	$Bops$O;		$(LD) $(LDFLAGS) -o $@ $Bops$O 
@@ -224,7 +228,7 @@ testclean:
 
 clean::		testclean
 		$(RM) $B*$O
-		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $Bm1.c
+		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $Bm1.c $BadamStd.c
 		$(RM) $Brcc1$E $Brcc1$E $B1rcc$E $B2rcc$E
 		$(RM) $B*.ilk
 
@@ -267,6 +271,7 @@ RCCSRCS=src/alloc.c \
 	$Bsparc.c \
 	$Bx86linux.c \
 	$Bm1.c \
+	$BadamStd.c \
 	$Bx86.c
 
 C=$Blcc -A -d0.6  -Isrc -I$(BUILDDIR)

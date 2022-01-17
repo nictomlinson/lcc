@@ -1706,7 +1706,7 @@ static void space(int n) {
 }
 
 
-Interface m1IR = {
+Interface adamStdIR = {
         1, 1, 0,  /* char */
         2, 1, 0,  /* short */
         2, 1, 0,  /* int */
@@ -1760,4 +1760,3 @@ Interface m1IR = {
             clobber,
 }
 };
-static char rcsid[] = "$Id: m1.md,v 1.15 2006/10/11 01:05:49 buzbee Exp buzbee $";
