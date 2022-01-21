@@ -17,7 +17,7 @@ B=$(BUILDDIR)/
 T=$(TSTDIR)/
 
 what:
-	-@echo make all rcc lburg cpp lcc bprint liblcc triple clean clobber
+	-@echo make all rcc lburg cpp lcc bprint liblcc triple clean clobber samples
 
 all::	rcc lburg cpp lcc bprint liblcc
 
@@ -27,6 +27,7 @@ cpp:	$Bcpp$E
 lcc:	$Blcc$E
 bprint:	$Bbprint$E
 liblcc:	$Bliblcc$A
+samples: TRIVIAL
 
 RCCOBJS=$Balloc$O \
 	$Bbind$O \
@@ -167,6 +168,72 @@ $Binclude$O:	cpp/include.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/include.c
 $Bhideset$O:	cpp/hideset.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/hideset.c
 $Bgetopt$O:	cpp/getopt.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/getopt.c
 $Bunix$O:	cpp/unix.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/unix.c
+
+TRIVIAL: $Bsample/adam/std/trivial.s \
+		$Bsample/x86/linux/trivial.s \
+		$Bsample/m1/magic1/trivial.s \
+		$Bsample/alpha/osf/trivial.s \
+		$Bsample/mips/irix/trivial.s \
+		$Bsample/sparc/sun/trivial.s \
+		$Bsample/sparc/solaris/trivial.s \
+		$Bsample/x86/win32/trivial.s \
+		$Bsample/symbolic/osf/trivial.s \
+		$Bsample/symbolic/irix/trivial.s \
+		$Bsample/symbolic/trivial.html \
+		$Bsample/bytecode/trivial.s
+
+$Bsample/adam/std/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/adam/std tst/trivial.c
+	lcc -Wf-target=adam/std -S  -o $Bsample/adam/std/trivial.s tst/trivial.c
+
+$Bsample/x86/linux/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/x86/linux tst/trivial.c
+	lcc -Wf-target=x86/linux -S  -o $Bsample/x86/linux/trivial.s tst/trivial.c
+
+$Bsample/m1/magic1/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/m1/magic1 tst/trivial.c
+	lcc -Wf-target=m1/magic1 -S  -o $Bsample/m1/magic1/trivial.s tst/trivial.c
+
+$Bsample/alpha/osf/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/alpha/osf tst/trivial.c
+	lcc -Wf-target=alpha/osf -S  -o $Bsample/alpha/osf/trivial.s tst/trivial.c
+
+$Bsample/mips/irix/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/mips/irix tst/trivial.c
+	lcc -Wf-target=mips/irix -S  -o $Bsample/mips/irix/trivial.s tst/trivial.c
+
+$Bsample/sparc/sun/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/sparc/sun tst/trivial.c
+	lcc -Wf-target=sparc/sun -S  -o $Bsample/sparc/sun/trivial.s tst/trivial.c
+
+$Bsample/sparc/solaris/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/sparc/solaris tst/trivial.c
+	lcc -Wf-target=sparc/solaris -S  -o $Bsample/sparc/solaris/trivial.s tst/trivial.c
+
+$Bsample/x86/win32/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/x86/win32 tst/trivial.c
+	lcc -Wf-target=x86/win32 -S  -o $Bsample/x86/win32/trivial.s tst/trivial.c
+
+$Bsample/symbolic/osf/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/symbolic/osf tst/trivial.c
+	lcc -Wf-target=symbolic/osf -S  -o $Bsample/symbolic/osf/trivial.s tst/trivial.c
+
+$Bsample/symbolic/irix/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/symbolic/irix tst/trivial.c
+	lcc -Wf-target=symbolic/irix -S  -o $Bsample/symbolic/irix/trivial.s tst/trivial.c
+
+$Bsample/symbolic/trivial.html: rcc lburg cpp lcc bprint liblcc $Bsample/symbolic tst/trivial.c
+	lcc -Wf-target=symbolic -Wf-html -S  -o $Bsample/symbolic/trivial.html tst/trivial.c
+
+$Bsample/bytecode/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/bytecode tst/trivial.c
+	lcc -Wf-target=bytecode -S  -o $Bsample/bytecode/trivial.s tst/trivial.c
+
+
+
+
+$Bsample/adam/std: ; mkdir -p $B/sample/adam/std
+$Bsample/x86/linux: ; mkdir -p $B/sample/x86/linux
+$Bsample/m1/magic1: ; mkdir -p $B/sample/m1/magic1
+$Bsample/alpha/osf: ; mkdir -p $B/sample/alpha/osf
+$Bsample/mips/irix: ; mkdir -p $B/sample/mips/irix
+$Bsample/sparc/sun: ; mkdir -p $B/sample/sparc/sun
+$Bsample/sparc/solaris: ; mkdir -p $B/sample/sparc/solaris
+$Bsample/x86/win32: ; mkdir -p $B/sample/x86/win32
+$Bsample/symbolic/osf: ; mkdir -p $B/sample/symbolic/osf
+$Bsample/symbolic/irix: ; mkdir -p $B/sample/symbolic/irix
+$Bsample/symbolic: ; mkdir -p $B/sample/symbolic
+$Bsample/bytecode: ; mkdir -p $B/sample/bytecode
+
 
 test:	$T8q.s \
 	$Tarray.s \

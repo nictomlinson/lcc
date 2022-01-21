@@ -11,7 +11,7 @@ xx(symbolic/osf, symbolic64IR) \
 xx(symbolic/irix,symbolicIR) \
 xx(symbolic,     symbolicIR) \
 xx(bytecode,     bytecodeIR) \
-xx(m1,           m1IR) \
+xx(m1/magic1,           m1IR) \
 xx(adam/std,     adamStdIR) \
 xx(null,         nullIR)
 
