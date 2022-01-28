@@ -1,20 +1,31 @@
 %{
-// from http://www.homebrewcpu.com/m1_md_11_25_06.txt on http://www.homebrewcpu.com/retargeting_lcc.htm
+#define INTTMP 0xffffffff
+#define INTVAR 0xffffffff
+#define FLTTMP 0xffffffff
+#define FLTVAR 0xffffffff
 
-// Register declration enumeration here
-enum {R_L0=0, R_L1=1, R_L2=2, R_L3=3, R_B=4, R_A=5, R_C=6};
-enum {R_F0=0, R_F1=1, R_F2=2, R_F3=3, R_F4=4, R_F5=5, R_F6=6, R_F7=7,
-      R_F8=8, R_F9=9, R_F10=10, R_F11=11, R_F12=12, R_F13=13, R_F14=14, R_F15=15};
+#define INTRET 0xffffffff
+#define FLTRET 0xffffffff
+#define REG4 IREG
+#define REG8 FREG
+
+#define COST_OF_REG_COPY 2
+#define COST_OF_DRG_COPY 4
+
+#define readsreg(p) \
+        (generic((p)->op)==INDIR && (p)->kids[0]->op==VREG+P)
+#define setsrc(d) ((d) && (d)->x.regnode && \
+        (d)->x.regnode->set == src->x.regnode->set && \
+        (d)->x.regnode->mask&src->x.regnode->mask)
+
+#define relink(a, b) ((b)->x.prev = (a), (a)->x.next = (b))
 
 #include "c.h"
-
 #define NODEPTR_TYPE Node
 #define OP_LABEL(p) ((p)->op)
 #define LEFT_CHILD(p) ((p)->kids[0])
 #define RIGHT_CHILD(p) ((p)->kids[1])
 #define STATE_LABEL(p) ((p)->x.state)
-
-// Declare local routines to be used by IR record here
 static void address(Symbol, Symbol, long);
 static void blkfetch(int, int, int, int);
 static void blkloop(int, int, int, int, int, int[]);
@@ -36,1695 +47,864 @@ static void progend(void);
 static void segment(int);
 static void space(int);
 static void target(Node);
-static int memop(Node);
-static int flip_memop(Node);
-static int isfloat4(Node);
-static int isfloat8(Node);
-static int sametree(Node,Node);
-static int isfptr(Node n, int iftrue, int iffalse);
+static int      bitcount       (unsigned);
+static Symbol reg32[32], reg64[32], d6;
+static Symbol reg32wildcard, reg64wildcard; 
+static int tmpregs[] = {3, 9, 10};
+static Symbol blkreg;
 
-// Local vars here
+static int gnum = 8;
+static int pic;
 
-static Symbol longreg[32];
-static Symbol intreg[32];
-static Symbol fltreg[32];
-
-static int used_longs;
-static int used_floats;
-static int ever_used_floats;
-
-static Symbol longwldcrd;
-static Symbol intwldcrd;
-static Symbol cwldcrd;
-static Symbol fltwldcrd;
-
-static int current_seg;
-
-static double_ptr = 0;
+static int cseg;
 %}
 %start stmt
-
 %term CNSTF4=4113
 %term CNSTF8=8209
+%term CNSTF16=16401
 %term CNSTI1=1045
 %term CNSTI2=2069
 %term CNSTI4=4117
-%term CNSTP2=2071
+%term CNSTI8=8213
+%term CNSTP4=4119
+%term CNSTP8=8215
 %term CNSTU1=1046
 %term CNSTU2=2070
 %term CNSTU4=4118
-
+%term CNSTU8=8214
+ 
 %term ARGB=41
 %term ARGF4=4129
 %term ARGF8=8225
-%term ARGI2=2085
+%term ARGF16=16417
 %term ARGI4=4133
-%term ARGP2=2087
-%term ARGU2=2086
+%term ARGI8=8229
+%term ARGP4=4135
+%term ARGP8=8231
 %term ARGU4=4134
+%term ARGU8=8230
 
 %term ASGNB=57
 %term ASGNF4=4145
 %term ASGNF8=8241
+%term ASGNF16=16433
 %term ASGNI1=1077
 %term ASGNI2=2101
 %term ASGNI4=4149
-%term ASGNP2=2103
+%term ASGNI8=8245
+%term ASGNP4=4151
+%term ASGNP8=8247
 %term ASGNU1=1078
 %term ASGNU2=2102
 %term ASGNU4=4150
+%term ASGNU8=8246
 
 %term INDIRB=73
 %term INDIRF4=4161
 %term INDIRF8=8257
+%term INDIRF16=16449
 %term INDIRI1=1093
 %term INDIRI2=2117
 %term INDIRI4=4165
-%term INDIRP2=2119
+%term INDIRI8=8261
+%term INDIRP4=4167
+%term INDIRP8=8263
 %term INDIRU1=1094
 %term INDIRU2=2118
 %term INDIRU4=4166
+%term INDIRU8=8262
 
 %term CVFF4=4209
 %term CVFF8=8305
-%term CVFI2=2165
+%term CVFF16=16497
 %term CVFI4=4213
+%term CVFI8=8309
+
 %term CVIF4=4225
 %term CVIF8=8321
+%term CVIF16=16513
 %term CVII1=1157
 %term CVII2=2181
 %term CVII4=4229
+%term CVII8=8325
 %term CVIU1=1158
 %term CVIU2=2182
 %term CVIU4=4230
-%term CVPU2=2198
+%term CVIU8=8326
+
+%term CVPP4=4247
+%term CVPP8=8343
+%term CVPP16=16535
+%term CVPU4=4246
+%term CVPU8=8342
+
 %term CVUI1=1205
 %term CVUI2=2229
 %term CVUI4=4277
-%term CVUP2=2231
+%term CVUI8=8373
+%term CVUP4=4279
+%term CVUP8=8375
+%term CVUP16=16567
 %term CVUU1=1206
 %term CVUU2=2230
 %term CVUU4=4278
+%term CVUU8=8374
 
 %term NEGF4=4289
 %term NEGF8=8385
-%term NEGI2=2245
+%term NEGF16=16577
 %term NEGI4=4293
+%term NEGI8=8389
 
 %term CALLB=217
 %term CALLF4=4305
 %term CALLF8=8401
-%term CALLI2=2261
+%term CALLF16=16593
 %term CALLI4=4309
-%term CALLP2=2263
-%term CALLU2=2262
+%term CALLI8=8405
+%term CALLP4=4311
+%term CALLP8=8407
 %term CALLU4=4310
+%term CALLU8=8406
 %term CALLV=216
 
 %term RETF4=4337
 %term RETF8=8433
-%term RETI2=2293
+%term RETF16=16625
 %term RETI4=4341
-%term RETP2=2295
-%term RETU2=2294
+%term RETI8=8437
+%term RETP4=4343
+%term RETP8=8439
 %term RETU4=4342
+%term RETU8=8438
 %term RETV=248
 
-%term ADDRGP2=2311
-%term ADDRFP2=2327
-%term ADDRLP2=2343
+%term ADDRGP4=4359
+%term ADDRGP8=8455
+
+%term ADDRFP4=4375
+%term ADDRFP8=8471
+
+%term ADDRLP4=4391
 
 %term ADDF4=4401
 %term ADDF8=8497
-%term ADDI2=2357
+%term ADDF16=16689
 %term ADDI4=4405
-%term ADDP2=2359
-%term ADDU2=2358
+%term ADDI8=8501
+%term ADDP4=4407
+%term ADDP8=8503
 %term ADDU4=4406
+%term ADDU8=8502
 
 %term SUBF4=4417
 %term SUBF8=8513
-%term SUBI2=2373
+%term SUBF16=16705
 %term SUBI4=4421
-%term SUBP2=2375
-%term SUBU2=2374
+%term SUBI8=8517
+%term SUBP4=4423
+%term SUBP8=8519
 %term SUBU4=4422
+%term SUBU8=8518
 
-%term LSHI2=2389
 %term LSHI4=4437
-%term LSHU2=2390
+%term LSHI8=8533
 %term LSHU4=4438
+%term LSHU8=8534
 
-%term MODI2=2405
 %term MODI4=4453
-%term MODU2=2406
+%term MODI8=8549
 %term MODU4=4454
+%term MODU8=8550
 
-%term RSHI2=2421
 %term RSHI4=4469
-%term RSHU2=2422
+%term RSHI8=8565
 %term RSHU4=4470
+%term RSHU8=8566
 
-%term BANDI2=2437
 %term BANDI4=4485
-%term BANDU2=2438
+%term BANDI8=8581
 %term BANDU4=4486
+%term BANDU8=8582
 
-%term BCOMI2=2453
 %term BCOMI4=4501
-%term BCOMU2=2454
+%term BCOMI8=8597
 %term BCOMU4=4502
+%term BCOMU8=8598
 
-%term BORI2=2469
 %term BORI4=4517
-%term BORU2=2470
+%term BORI8=8613
 %term BORU4=4518
+%term BORU8=8614
 
-%term BXORI2=2485
 %term BXORI4=4533
-%term BXORU2=2486
+%term BXORI8=8629
 %term BXORU4=4534
+%term BXORU8=8630
 
 %term DIVF4=4545
 %term DIVF8=8641
-%term DIVI2=2501
+%term DIVF16=16833
 %term DIVI4=4549
-%term DIVU2=2502
+%term DIVI8=8645
 %term DIVU4=4550
+%term DIVU8=8646
 
 %term MULF4=4561
 %term MULF8=8657
-%term MULI2=2517
+%term MULF16=16849
 %term MULI4=4565
-%term MULU2=2518
+%term MULI8=8661
 %term MULU4=4566
+%term MULU8=8662
 
 %term EQF4=4577
 %term EQF8=8673
+%term EQF16=16865
 %term EQI2=2533
 %term EQI4=4581
-%term EQU2=2534
+%term EQI8=8677
 %term EQU4=4582
+%term EQU8=8678
 
 %term GEF4=4593
 %term GEF8=8689
-%term GEI2=2549
 %term GEI4=4597
-%term GEU2=2550
+%term GEI8=8693
+%term GEI16=16885
 %term GEU4=4598
+%term GEU8=8694
 
 %term GTF4=4609
 %term GTF8=8705
-%term GTI2=2565
+%term GTF16=16897
 %term GTI4=4613
-%term GTU2=2566
+%term GTI8=8709
 %term GTU4=4614
+%term GTU8=8710
 
 %term LEF4=4625
 %term LEF8=8721
-%term LEI2=2581
+%term LEF16=16913
 %term LEI4=4629
-%term LEU2=2582
+%term LEI8=8725
 %term LEU4=4630
+%term LEU8=8726
 
 %term LTF4=4641
 %term LTF8=8737
-%term LTI2=2597
+%term LTF16=16929
 %term LTI4=4645
-%term LTU2=2598
+%term LTI8=8741
 %term LTU4=4646
+%term LTU8=8742
 
 %term NEF4=4657
 %term NEF8=8753
-%term NEI2=2613
+%term NEF16=16945
 %term NEI4=4661
-%term NEU2=2614
+%term NEI8=8757
 %term NEU4=4662
+%term NEU8=8758
 
 %term JUMPV=584
 
 %term LABELV=600
 
-%term VREGP=711
-
-%term LOADI4=4325
-%term LOADU4=4326
-%term LOADI2=2277
-%term LOADU2=2278
-%term LOADP2=2279
-%term LOADF4=4321
 %term LOADB=233
+%term LOADF4=4321
 %term LOADF8=8417
+%term LOADF16=16609
 %term LOADI1=1253
+%term LOADI2=2277
+%term LOADI4=4325
+%term LOADI8=8421
+%term LOADP4=4327
+%term LOADP8=8423
 %term LOADU1=1254
+%term LOADU2=2278
+%term LOADU4=4326
+%term LOADU8=8422
+
+%term VREGP=711
 %%
+reg:  INDIRI1(VREGP)     "# read register\n"
+reg:  INDIRU1(VREGP)     "# read register\n"
 
-reg8:	LOADI1(reg8)	"\tcopy\t%c,%0\n" move(a)
-reg8:	LOADI1(reg)	"\tcopy\t%c,%0\n" move(a)
-reg8:	LOADI1(reg32)	"\tld.8\t%c,3+%0\n" 1
-reg8:	LOADU1(reg8)	"\tcopy\t%c,%0\n" move(a)
-reg8:	LOADU1(reg)	"\tcopy\t%c,%0\n" move(a)
-reg8:	LOADU1(reg32)	"\tld.8\t%c,3+%0\n" 1
+reg:  INDIRI2(VREGP)     "# read register\n"
+reg:  INDIRU2(VREGP)     "# read register\n"
 
-reg:	LOADI2(reg)	"\tcopy\t%c,%0\n" move(a)
-reg:	LOADI2(reg32)	"\tld.16\t%c,2+%0\n" 1
-reg:	LOADU2(reg)	"\tcopy\t%c,%0\n" move(a)
-reg:	LOADU2(reg32)	"\tld.16\t%c,2+%0\n" 1
+reg:  INDIRF4(VREGP)     "# read register\n"
+reg:  INDIRI4(VREGP)     "# read register\n"
+reg:  INDIRP4(VREGP)     "# read register\n"
+reg:  INDIRU4(VREGP)     "# read register\n"
 
-reg:	LOADP2(reg)	"\tcopy\t%c,%0\n" move(a)
+reg:  INDIRF8(VREGP)     "# read register\n"
+reg:  INDIRI8(VREGP)     "# read register\n"
+reg:  INDIRP8(VREGP)     "# read register\n"
+reg:  INDIRU8(VREGP)     "# read register\n"
 
-reg32:	LOADI4(reg32)	"\tCOPY32(%c,%0)\n" move(a)
-reg32:	LOADU4(reg32)	"\tCOPY32(%c,%0)\n" move(a)
+stmt: ASGNI1(VREGP,reg)  "# write register\n"
+stmt: ASGNU1(VREGP,reg)  "# write register\n"
 
-regf64:	LOADF4(regf64)	"\tCOPY32(%c,%0)\n" move(a)
-regf64:	LOADF8(regf64)	"\tCOPY64(%c,%0)\n" move(a)
+stmt: ASGNI2(VREGP,reg)  "# write register\n"
+stmt: ASGNU2(VREGP,reg)  "# write register\n"
 
-reg8:	INDIRI1(VREGP)     "# read register\n"
-reg8:	INDIRU1(VREGP)     "# read register\n"
+stmt: ASGNF4(VREGP,reg)  "# write register\n"
+stmt: ASGNI4(VREGP,reg)  "# write register\n"
+stmt: ASGNP4(VREGP,reg)  "# write register\n"
+stmt: ASGNU4(VREGP,reg)  "# write register\n"
 
-reg:	INDIRI2(VREGP)     "# read register\n"
-reg:	INDIRU2(VREGP)     "# read register\n"
+stmt: ASGNF8(VREGP,reg)  "# write register\n"
+stmt: ASGNI8(VREGP,reg)  "# write register\n"
+stmt: ASGNP8(VREGP,reg)  "# write register\n"
+stmt: ASGNU8(VREGP,reg)  "# write register\n"
 
-reg:	INDIRP2(VREGP)     "# read register\n"
-
-reg32:	INDIRI4(VREGP)     "# read register\n"
-reg32:	INDIRU4(VREGP)     "# read register\n"
-
-regf64:	INDIRF4(VREGP)     "# read register\n"
-regf64:	INDIRF8(VREGP)     "# read register\n"
-
-stmt:	ASGNI1(VREGP,reg8)  "# write register\n"
-stmt:	ASGNU1(VREGP,reg8)  "# write register\n"
-
-stmt:	ASGNI2(VREGP,reg)  "# write register\n"
-stmt:	ASGNU2(VREGP,reg)  "# write register\n"
-
-stmt:	ASGNP2(VREGP,reg)  "# write register\n"
-
-stmt:	ASGNI4(VREGP,reg32)  "# write register\n"
-stmt:	ASGNU4(VREGP,reg32)  "# write register\n"
-
-stmt:	ASGNF4(VREGP,regf64)  "# write register\n"
-stmt:	ASGNF8(VREGP,regf64)  "# write register\n"
-
-regf64: CVFF4(regf64)	"\tCVTF8F4(%c,%0)\n" 4
-regf64: CVFF8(regf64)	"\tCVTF4F8(%c,%0)\n" 4
-
-regf64: CVIF4(reg32)	"\tCVTI4F4(%c,%0)\n" 4
-regf64: CVIF4(reg)	"\tCVTI2F4(%c,%0)\n" 4
-regf64: CVIF8(reg32)	"\tCVTI4F8(%c,%0)\n" 4
-regf64: CVIF8(reg)	"\tCVTI2F8(%c,%0)\n" 4
-
-reg32: CVFI4(regf64)	"\tCVTF8I4(%c,%0)\n" isfloat8(a)
-reg32: CVFI4(regf64)	"\tCVTF4I4(%c,%0)\n" isfloat4(a)
-reg: CVFI2(regf64)	"\tCVTF8I2(%c,%0)\n" isfloat8(a)
-reg: CVFI2(regf64)	"\tCVTF4I2(%c,%0)\n" isfloat4(a)
-
-reg8: CVII1(reg32) "\tld.8\t%c,3+%0\n" 1
-reg8: CVII1(reg)   "\tcopy\t%c,%0\n" move(a)
-reg8: CVUI1(reg32) "\tld.8\t%c,3+%0\n" 1
-reg8: CVUI1(reg)   "\tcopy\t%c,%0\n" move(a)
-
-reg8: LOADU1(LOADU2(CVII2(reg))) "?\tcopy\t%c,%0\n" 1
-reg8: LOADI1(CVUI2(reg))	 "?\tcopy\t%c,%0\n" 1
-reg8: LOADU1(LOADU2(CVII2(reg8))) "?\tcopy\t%c,%0\n" 1
-reg8: LOADI1(CVUI2(reg8))	 "?\tcopy\t%c,%0\n" 1
-
-reg: CVII2(reg8)  "?\tcopy\t%c,%0\n\tsex\t%c\n" 2
-reg: CVII2(reg32) "\tld.16\t%c,2+%0\n" 1
-reg: CVUI2(reg8)  "?\tcopy\t%c,%0\n\tand.16\ta,0xff\n" 2
-reg: CVUI2(reg32) "\tld.16\t%c,2+%0\n" 1
-
-reg8: CVIU1(reg32) "\tld.8\t%c,3+%0\n" 1
-reg8: CVIU1(reg)   "\tcopy\t%c,%0\n" move(a)
-reg8: CVUU1(reg32) "\tld.8\t%c,3+%0\n" 1
-reg8: CVUU1(reg)   "\tcopy\t%c,%0\n" move(a)
-
-reg: CVIU2(reg8)  "?\tcopy\t%c,%0\n\tsex\t%c,0xff\n" 2
-reg: CVIU2(reg32) "\tld.16\t%c,2+%0\n" 1
-reg: CVUU2(reg8)  "?\tcopy\t%c,%0\n\tand.16\t%c,0xff\n" 2
-reg: CVUU2(reg32) "\tld.16\t%c,2+%0\n" 1
-
-reg32: CVUU4(reg)	"\tCVTUU4(%c,%0)\n" move(a)
-reg32: CVIU4(reg)	"\tCVTUU4(%c,%0)\n" move(a)
-reg32: CVUI4(reg)	"\tCVTUU4(%c,%0)\n" move(a)
-reg32: CVII4(reg)	"\tCVTII4(%c,%0)\n" move(a)
-
-reg: con "\tld.16\t%c,%0\n" 1
-reg8: con "\tld.8\t%c,%0\n" 1
-
-c0: CNSTI2  "0"	range(a,0,0)
-c1: CNSTI2  "1"	range(a,1,1)
-c2: CNSTI2  "2"	range(a,2,2)
-c0: CNSTU2  "0"	range(a,0,0)
-c1: CNSTU2  "1"	range(a,1,1)
-c2: CNSTU2  "2"	range(a,2,2)
-
-con1: CNSTI1  "%a"
-con1: CNSTU1  "%a"
-
-con2: CNSTI2  "%a"
-con2: CNSTU2  "%a"
-
+con4: CNSTI1  "%a"
+con4: CNSTU1  "%a"
+con4: CNSTI2  "%a"
+con4: CNSTU2  "%a"
 con4: CNSTI4  "%a"
 con4: CNSTU4  "%a"
-con4: CNSTP2  "%a"
-
-con:	con1	"%0"
-con:	con2	"%0"
-con:	con4	"%0"
-con:	c0	"%0"
-con:	c1	"%0"
-con:	c2	"%0"
-
-reg:	con1	"\tld.8\t%c,%0\n"   1
-reg:	con2	"\tld.16\t%c,%0\n"  1
-
-creg:	con	"\tld.16\tc,%0\n"   1
-
-reg:	ADDI2(reg,reg)	"?\tcopy\t%c,%0\n\tadd.16\t%c,%1\n" 2
-reg:	ADDI2(reg,con)	"?\tcopy\t%c,%0\n\tadd.16\t%c,%1\n" 2
-reg:	ADDI2(reg,dref16)    "?\tcopy\t%c,%0\n\tadd.16\t%c,%1\n" 2
-reg:	ADDU2(reg,reg)	"?\tcopy\t%c,%0\n\tadd.16\t%c,%1\n" 2
-reg:	ADDU2(reg,con)	"?\tcopy\t%c,%0\n\tadd.16\t%c,%1\n" 2
-reg:	ADDU2(reg,dref16)    "?\tcopy\t%c,%0\n\tadd.16\t%c,%1\n" 2
-
-reg:	ADDP2(reg,con)	"\tlea\t%c,%1(%0)\n" 1
-reg:	ADDP2(reg,reg)	"\tsh0add\t%c,%0,%1\n" 1
-reg:	ADDP2(LSHI2(reg,c1),reg) "\tsh1add\t%c,%2,%0\n" 1
-reg:	ADDP2(LSHU2(reg,c1),reg) "\tsh1add\t%c,%2,%0\n" 1
-
-reg8:	ADDI2(reg8,reg8)	"?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDI2(reg8,con)	"?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDI2(CVII2(reg8),con)	"?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDI2(reg8,CVII2(dref8))    "?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDI2(CVII2(reg8),CVII2(dref8))    "?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDU2(reg8,reg8)	"?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDU2(reg8,con)	"?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDU2(reg8,CVUU2(dref8))    "?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-reg8:	ADDU2(CVUU2(reg8),CVUU2(dref8))    "?\tcopy\t%c,%0\n\tadd.8\t%c,%1\n" 2
-
-reg32:	ADDI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tADD32(%c,%1)\n" 5
-reg32:	ADDI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tADD32(%c,%1)\n" 5
-reg32:	ADDU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tADD32(%c,%1)\n" 5
-reg32:	ADDU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tADD32(%c,%1)\n" 5
-regf64:	ADDF4(regf64,regf64)	"?\tCOPY32(%c,%0)\n\tFADD32(%c,%1)\n" 5
-regf64:	ADDF4(regf64,INDIRF4(faddr))	"?\tCOPY32(%c,%0)\n\tFADD32(%c,%1)\n" 5
-regf64:	ADDF8(regf64,regf64)	"?\tCOPY64(%c,%0)\n\tFADD64(%c,%1)\n" 5
-regf64:	ADDF8(regf64,INDIRF8(faddr))	"?\tCOPY64(%c,%0)\n\tFADD64(%c,%1)\n" 5
-
-reg:	SUBI2(reg,reg)	"?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBI2(reg,con)	"?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBI2(reg,dref16)    "?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBU2(reg,reg)	"?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBU2(reg,con)	"?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBU2(reg,dref16)    "?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBP2(reg,reg)	"?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBP2(reg,con)	"?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-reg:	SUBP2(reg,dref16)    "?\tcopy\t%c,%0\n\tsub.16\t%c,%1\n" 2
-
-reg8:	SUBI2(reg8,reg8)	"?\tcopy\t%c,%0\n\tsub.8\t%c,%1\n" 2
-reg8:	SUBI2(reg8,con)	"?\tcopy\t%c,%0\n\tsub.8\t%c,%1\n" 2
-reg8:	SUBI2(reg8,CVII2(dref16))    "?\tcopy\t%c,%0\n\tsub.8\t%c,%1\n" 2
-reg8:	SUBU2(reg8,reg8)	"?\tcopy\t%c,%0\n\tsub.8\t%c,%1\n" 2
-reg8:	SUBU2(reg8,con)	"?\tcopy\t%c,%0\n\tsub.8\t%c,%1\n" 2
-reg8:	SUBU2(reg8,CVUU2(dref16))    "?\tcopy\t%c,%0\n\tsub.8\t%c,%1\n" 2
-
-reg32:	SUBI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tSUB32(%c,%1)\n" 5
-reg32:	SUBI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tSUB32(%c,%1)\n" 5
-reg32:	SUBU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tSUB32(%c,%1)\n" 5
-reg32:	SUBU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tSUB32(%c,%1)\n" 2
-regf64:	SUBF4(regf64,regf64)	"?\tCOPY32(%c,%0)\n\tFSUB32(%c,%1)\n" 5
-regf64:	SUBF4(regf64,INDIRF4(faddr))	"?\tCOPY32(%c,%0)\n\tFSUB32(%c,%1)\n" 5
-regf64:	SUBF8(regf64,regf64)	"?\tCOPY64(%c,%0)\n\tFSUB64(%c,%1)\n" 5
-regf64:	SUBF8(regf64,INDIRF8(faddr))	"?\tCOPY64(%c,%0)\n\tFSUB64(%c,%1)\n" 5
-
-reg:	BANDI2(reg,reg)	"?\tcopy\t%c,%0\n\tand.16\t%c,%1\n" 2
-reg:	BANDI2(reg,con)	"?\tcopy\t%c,%0\n\tand.16\t%c,%1\n" 2
-reg:	BANDI2(reg,dref16)    "?\tcopy\t%c,%0\n\tand.16\t%c,%1\n" 2
-reg:	BANDU2(reg,reg)	"?\tcopy\t%c,%0\n\tand.16\t%c,%1\n" 2
-reg:	BANDU2(reg,con)	"?\tcopy\t%c,%0\n\tand.16\t%c,%1\n" 2
-reg:	BANDU2(reg,dref16)    "?\tcopy\t%c,%0\n\tand.16\t%c,%1\n" 2
-
-reg8:	BANDI2(reg8,reg8)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDI2(CVII2(reg8),reg8)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDI2(CVUI2(reg8),reg8)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDI2(reg8,con)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDI2(CVII2(reg8),con)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDI2(CVUI2(reg8),con)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDI2(reg8,CVII2(dref16))    "?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDU2(reg8,reg8)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDU2(reg8,con)	"?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-reg8:	BANDU2(reg8,CVUU2(dref16))    "?\tcopy\t%c,%0\n\tand.8\t%c,%1\n" 2
-
-reg32:	BANDI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tAND32(%c,%1)\n" 5
-reg32:	BANDI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tAND32(%c,%1)\n" 5
-reg32:	BANDU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tAND32(%c,%1)\n" 5
-reg32:	BANDU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tAND32(%c,%1)\n" 5
-reg32:	BANDU4(reg32,con)	"\tld.16\ta,0\n\tst.16\t%c,a\n\tld.16\ta,2+%0\n\tand.16\ta,%1\n\tst.16\t2+%c,a\n" 5
-
-reg:	BCOMI2(reg)	"ld.16\ta,-1\n\txor.16\ta,b\n" 2
-reg:	BCOMU2(reg)	"ld.16\ta,-1\n\txor.16\ta,b\n" 2
-
-reg:	BORI2(reg,reg)	"?\tcopy\t%c,%0\n\tor.16\t%c,%1\n" 2
-reg:	BORI2(reg,con)	"?\tcopy\t%c,%0\n\tor.16\t%c,%1\n" 2
-reg:	BORI2(reg,dref16)    "?\tcopy\t%c,%0\n\tor.16\t%c,%1\n" 2
-reg:	BORU2(reg,reg)	"?\tcopy\t%c,%0\n\tor.16\t%c,%1\n" 2
-reg:	BORU2(reg,con)	"?\tcopy\t%c,%0\n\tor.16\t%c,%1\n" 2
-reg:	BORU2(reg,dref16)    "?\tcopy\t%c,%0\n\tor.16\t%c,%1\n" 2
-
-reg8:	BORI2(reg8,reg8)	"?\tcopy\t%c,%0\n\tor.8\t%c,%1\n" 2
-reg8:	BORI2(reg8,con)	"?\tcopy\t%c,%0\n\tor.8\t%c,%1\n" 2
-reg8:	BORI2(reg8,CVII2(dref16))    "?\tcopy\t%c,%0\n\tor.8\t%c,%1\n" 2
-reg8:	BORU2(reg8,reg8)	"?\tcopy\t%c,%0\n\tor.8\t%c,%1\n" 2
-reg8:	BORU2(reg8,con)	"?\tcopy\t%c,%0\n\tor.8\t%c,%1\n" 2
-reg8:	BORU2(reg8,CVUU2(dref16))    "?\tcopy\t%c,%0\n\tor.8\t%c,%1\n" 2
-
-
-reg32:	BCOMI4(reg32)	"?\tCOPY32(%c,%0)\n\tBCOM32(%c)\n" 2
-reg32:	BCOMU4(reg32)	"?\tCOPY32(%c,%0)\n\tBCOM32(%c)\n" 2
-
-reg32:	BORI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tOR32(%c,%1)\n" 5
-reg32:	BORI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tOR32(%c,%1)\n" 5
-reg32:	BORU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tOR32(%c,%1)\n" 5
-reg32:	BORU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tOR32(%c,%1)\n" 5
-
-reg:	BXORI2(reg,reg)	"?\tcopy\t%c,%0\n\txor.16\t%c,%1\n" 2
-reg:	BXORU2(reg,reg)	"?\tcopy\t%c,%0\n\txor.16\t%c,%1\n" 2
-
-reg32:	BXORI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tXOR32(%c,%1)\n" 2
-reg32:	BXORI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tXOR32(%c,%1)\n" 2
-reg32:	BXORU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tXOR32(%c,%1)\n" 2
-reg32:	BXORU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tXOR32(%c,%1)\n" 2
-
-reg:	MULI2(reg,reg)	"?\tcopy\t%c,%0\n\tcall\t$muli16\n" 4
-reg:	MULU2(reg,reg)	"?\tcopy\t%c,%0\n\tcall\t$mulu16\n" 4
-
-reg32:	MULI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tMULI32(%c,%1)\n" 8
-reg32:	MULI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tMULI32(%c,%1)\n" 8
-reg32:	MULU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tMULU32(%c,%1)\n" 8
-reg32:	MULU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tMULU32(%c,%1)\n" 8
-
-regf64:	MULF4(regf64,regf64)	"?\tCOPY32(%c,%0)\n\tFMUL32(%c,%1)\n" 8
-regf64:	MULF4(regf64,INDIRF4(faddr))	"?\tCOPY32(%c,%0)\n\tFMUL32(%c,%1)\n" 8
-regf64:	MULF8(regf64,regf64)	"?\tCOPY64(%c,%0)\n\tFMUL64(%c,%1)\n" 8
-regf64:	MULF8(regf64,INDIRF8(faddr))	"?\tCOPY64(%c,%0)\n\tFMUL64(%c,%1)\n" 8
-
-reg:	DIVI2(reg,reg)	"?\tcopy\t%c,%0\n\tcall\t$divi16\n" 2
-reg:	DIVU2(reg,reg)	"?\tcopy\t%c,%0\n\tcall\t$divu16\n" 2
-
-reg32:	DIVI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tDIVI32(%c,%1)\n" 8
-reg32:	DIVI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tDIVI32(%c,%1)\n" 8
-reg32:	DIVU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tDIVU32(%c,%1)\n" 8
-reg32:	DIVU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tDIVU32(%c,%1)\n" 8
-
-regf64:	DIVF4(regf64,regf64)	"?\tCOPY32(%c,%0)\n\tFDIV32(%c,%1)\n" 8
-regf64:	DIVF4(regf64,INDIRF4(faddr))	"?\tCOPY32(%c,%0)\n\tFDIV32(%c,%1)\n" 8
-regf64:	DIVF8(regf64,regf64)	"?\tCOPY64(%c,%0)\n\tFDIV64(%c,%1)\n" 8
-regf64:	DIVF8(regf64,INDIRF8(faddr))	"?\tCOPY64(%c,%0)\n\tFDIV64(%c,%1)\n" 8
-
-reg:	MODI2(reg,reg)	"?\tcopy\t%c,%0\n\tcall\t$modi16\n" 2
-reg:	MODU2(reg,reg)	"?\tcopy\t%c,%0\n\tcall\t$modu16\n" 2
-reg32:	MODI4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tMODI32(%c,%1)\n" 8
-reg32:	MODI4(reg32,INDIRI4(faddr))	"?\tCOPY32(%c,%0)\n\tMODI32(%c,%1)\n" 8
-reg32:	MODU4(reg32,reg32)	"?\tCOPY32(%c,%0)\n\tMODU32(%c,%1)\n" 8
-reg32:	MODU4(reg32,INDIRU4(faddr))	"?\tCOPY32(%c,%0)\n\tMODU32(%c,%1)\n" 8
-
-reg:	NEGI2(reg)	"\tld.16\t%c,0\n\tsub.16\t%c,%0\n" 5
-reg32:	NEGI4(reg32)	"\tNEGI32(%c,%0)\n" 5
-reg32:	NEGI4(INDIRI4(faddr))	"\tNEGI32(%c,%0)\n" 5
-regf64:	NEGF4(regf64)	"\tFNEG32(%c,%0)\n" 5
-regf64:	NEGF4(INDIRF4(faddr))	"\tFNEG32(%c,%0)\n" 5
-regf64:	NEGF8(regf64)	"\tFNEG64(%c,%0)\n" 5
-regf64:	NEGF8(INDIRF8(faddr))	"\tFNEG64(%c,%0)\n" 5
-
-reg:	LSHI2(reg,c1)	"?\tcopy\t%c,%0\n\tshl.16\t%c\n" 2
-reg:	LSHI2(reg,c2)	"?\tcopy\t%c,%0\n\tshl.16\t%c\n\tshl.16\t%c\n" 3
-reg:	LSHI2(reg,creg)	"?\tcopy\t%c,%0\n\tvshl.16\t%c\n" 4
-reg:	LSHI2(reg,reg)	"?\tcopy\t%c,%0\n\tcopy\tc,%1\n\tvshl.16\t%c\n" 4
-reg:	LSHU2(reg,c1)	"?\tcopy\t%c,%0\n\tshl.16\t%c\n" 2
-reg:	LSHU2(reg,c2)	"?\tcopy\t%c,%0\n\tshl.16\t%c\n\tshl.16\t%c\n" 3
-reg:	LSHU2(reg,creg)	"?\tcopy\t%c,%0\n\tvshl.16\t%c\n" 4
-reg:	LSHU2(reg,reg)	"?\tcopy\t%c,%0\n\tcopy\tc,%1\n\tvshl.16\t%c\n" 4
-
-reg32:	LSHI4(reg32,creg)	"?\tCOPY32(%c,%0)\n\tLSH32(%c)\n" 6
-reg32:	LSHI4(reg32,reg)	"?\tCOPY32(%c,%0)\n\tcopy\tc,%1\n\tLSH32(%c)\n" 6
-reg32:	LSHU4(reg32,creg)	"?\tCOPY32(%c,%0)\n\tLSH32(%c)\n" 6
-reg32:	LSHU4(reg32,reg)	"?\tCOPY32(%c,%0)\n\tcopy\tc,%1\n\tLSH32(%c)\n" 6
-
-reg:	RSHI2(reg,c1)	"?\tcopy\t%c,%0\n\tshr.16\t%c\n" 2
-reg:	RSHI2(reg,c2)	"?\tcopy\t%c,%0\n\tshr.16\t%c\n\tshr.16\t%c\n" 3
-reg:	RSHI2(reg,creg)	"?\tcopy\t%c,%0\n\tvshr.16\t%c\n" 4
-reg:	RSHI2(reg,reg)	"?\tcopy\t%c,%0\n\tcopy\tc,%1\n\tvshr.16\t%c\n" 4
-reg:	RSHU2(reg,c1)	"?\tcopy\t%c,%0\n\tshr.16\t%c\n" 2
-reg:	RSHU2(reg,c2)	"?\tcopy\t%c,%0\n\tshr.16\t%c\n\tshr.16\t%c\n" 3
-reg:	RSHU2(reg,creg)	"?\tcopy\t%c,%0\n\tvshr.16\t%c\n" 4
-reg:	RSHU2(reg,reg)	"?\tcopy\t%c,%0\n\tcopy\tc,%1\n\tvshr.16\t%c\n" 4
-
-reg32:	RSHI4(reg32,creg)	"?\tCOPY32(%c,%0)\n\tRSH32(%c)\n" 6
-reg32:	RSHI4(reg32,reg)	"?\tCOPY32(%c,%0)\n\tcopy\tc,%1\n\tRSH32(%c)\n" 6
-reg32:	RSHU4(reg32,creg)	"?\tCOPY32(%c,%0)\n\tRSH32(%c)\n" 6
-reg32:	RSHU4(reg32,reg)	"?\tCOPY32(%c,%0)\n\tcopy\tc,%1\n\tRSH32(%c)\n" 6
-
-stmt:	EQI2(reg,reg)		"\tcmpb.eq.16\t%0,%1,%a\n" 1
-stmt:	EQI2(reg,con)		"\tcmpb.eq.16\t%0,%1,%a\n" 1
-stmt:	EQI2(reg,dref16) "\tcmpb.eq.16\t%0,%1,%a\n" 1
-stmt:	EQI2(BANDI2(reg,con),c0) "\tbclr.16\t%0,%1,%a\n" 1
-stmt:	EQU2(reg,reg)		"\tcmpb.eq.16\t%0,%1,%a\n" 1
-stmt:	EQU2(reg,con)		"\tcmpb.eq.16\t%0,%1,%a\n" 1
-stmt:	EQU2(reg,dref16) "\tcmpb.eq.16\t%0,%1,%a\n" 1
-stmt:	EQU2(BANDU2(reg,con),c0) "\tbclr.16\t%0,%1,%a\n" 1
-
-stmt:	EQI2(reg8,reg8)		"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(CVII2(reg8),CVII2(reg8))		"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(reg8,con)		"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(CVII2(reg8),con)		"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(CVUI2(reg8),con)		"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(reg8,CVII2(dref8)) "\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(CVII2(reg8),CVII2(dref8)) "\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(reg8,CVII2(reg8)) "\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQI2(BANDI2(reg8,con),c0) "\tbclr.8\t%0,%1,%a\n" 1
-stmt:	EQI2(BANDI2(CVII2(reg8),con),c0) "\tbclr.8\t%0,%1,%a\n" 1
-stmt:	EQI2(BANDI2(CVUI2(reg8),con),c0) "\tbclr.8\t%0,%1,%a\n" 1
-stmt:	EQU2(reg8,reg8)		"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQU2(reg8,con)		"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQU2(CVUU2(reg8),con)	"\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQU2(reg8,CVUU2(dref8)) "\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQU2(CVUU2(reg8),CVUU2(dref8)) "\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQU2(reg8,CVUU2(reg8)) "\tcmpb.eq.8\t%0,%1,%a\n" 1
-stmt:	EQU2(BANDU2(reg8,con),c0) "\tbclr.8\t%0,%1,%a\n" 1
-
-stmt:	EQI4(reg32,reg32)	"\tCMPBEQ32(%0,%1,%a)\n" 5
-stmt:	EQI4(reg32,INDIRI4(faddr))	"\tCMPBEQ32(%0,%1,%a)\n" 5
-stmt:	EQI4(mem,mem)	"\tCMPBEQ32(%0,%1,%a)\n" 5
-stmt:	EQU4(reg32,reg32)	"\tCMPBEQ32(%0,%1,%a)\n" 5
-stmt:	EQU4(reg32,INDIRU4(faddr))	"\tCMPBEQ32(%0,%1,%a)\n" 5
-stmt:	EQU4(mem,mem)	"\tCMPBEQ32(%0,%1,%a)\n" 5
-stmt:	EQF4(regf64,regf64)	"\tCMPBEQF32(%0,%1,%a)\n" 5
-stmt:	EQF4(regf64,INDIRF4(faddr))	"\tCMPBEQF32(%0,%1,%a)\n" 5
-stmt:	EQF4(mem,mem)	"\tCMPBEQF32(%0,%1,%a)\n" 5
-stmt:	EQF8(regf64,regf64)	"\tCMPBEQF64(%0,%1,%a)\n" 5
-stmt:	EQF8(regf64,INDIRF8(faddr))	"\tCMPBEQF64(%0,%1,%a)\n" 5
-stmt:	EQF8(mem,mem)	"\tCMPBEQF64(%0,%1,%a)\n" 5
-
-stmt:	NEI2(reg,reg)		"\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEI2(reg,con)		"\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEI2(reg,c0)		"\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEI2(reg,dref16) "\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEI2(BANDI2(reg,con),c0) "\tbset.16\t%0,%1,%a\n" 1
-stmt:	NEU2(reg,reg)		"\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEU2(reg,con)		"\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEU2(reg,c0)		"\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEU2(reg,dref16) "\tcmpb.ne.16\t%0,%1,%a\n" 1
-stmt:	NEU2(BANDI2(reg,con),c0) "\tbset.16\t%0,%1,%a\n" 1
-
-stmt:	NEI2(reg8,reg8)		"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(CVII2(reg8),CVII2(reg8))		"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(reg8,con)		"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(CVII2(reg8),con)	"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(CVUI2(reg8),con)	"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(reg8,CVII2(dref8)) "\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(CVII2(reg8),CVII2(dref8)) "\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(reg8,CVII2(reg8)) "\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEI2(BANDI2(reg8,con),c0) "\tbset.8\t%0,%1,%a\n" 1
-stmt:	NEI2(BANDI2(CVII2(reg8),con),c0) "\tbset.8\t%0,%1,%a\n" 1
-stmt:	NEI2(BANDI2(CVUI2(reg8),con),c0) "\tbset.8\t%0,%1,%a\n" 1
-stmt:	NEU2(reg8,reg8)		"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEU2(reg8,con)		"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEU2(CVUU2(reg8),con)		"\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEU2(reg8,CVUU2(dref8)) "\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEU2(CVUU2(reg8),CVUU2(dref8)) "\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEU2(reg8,CVUU2(reg8)) "\tcmpb.ne.8\t%0,%1,%a\n" 1
-stmt:	NEU2(BANDU2(reg8,con),c0) "\tbset.8\t%0,%1,%a\n" 1
-
-stmt:	NEI4(reg32,reg32)	"\tCMPBNE32(%0,%1,%a)\n" 5
-stmt:	NEI4(reg32,INDIRU4(faddr))	"\tCMPBNE32(%0,%1,%a)\n" 5
-stmt:	NEI4(mem,mem)	"\tCMPBNE32(%0,%1,%a)\n" 5
-stmt:	NEU4(reg32,reg32)	"\tCMPBNE32(%0,%1,%a)\n" 5
-stmt:	NEU4(reg32,INDIRU4(faddr))	"\tCMPBNE32(%0,%1,%a)\n" 5
-stmt:	NEU4(mem,mem)	"\tCMPBNE32(%0,%1,%a)\n" 5
-stmt:	NEF4(regf64,regf64)	"\tCMPBNEF32(%0,%1,%a)\n" 5
-stmt:	NEF4(regf64,INDIRF4(faddr))	"\tCMPBNEF32(%0,%1,%a)\n" 5
-stmt:	NEF4(mem,mem)	"\tCMPBNEF32(%0,%1,%a)\n" 5
-stmt:	NEF8(regf64,regf64)	"\tCMPBNEF64(%0,%1,%a)\n" 5
-stmt:	NEF8(regf64,INDIRF8(faddr))	"\tCMPBNEF64(%0,%1,%a)\n" 5
-stmt:	NEF8(mem,mem)	"\tCMPBNEF64(%0,%1,%a)\n" 5
-
-stmt:	LTI2(reg,reg)		"\tcmpb.lt.16\t%0,%1,%a\n" 1
-stmt:	LTI2(reg,con)		"\tcmpb.lt.16\t%0,%1,%a\n" 1
-stmt:	LTI2(reg,dref16) "\tcmpb.lt.16\t%0,%1,%a\n" 1
-stmt:	LTU2(reg,reg)		"\tcmp.16\t%0,%1\n\tbr.ltu\t%a\n" 2
-stmt:	LTU2(reg,con)		"\tcmp.16\t%0,%1\n\tbr.ltu\t%a\n" 2
-stmt:	LTU2(reg,dref16) "\tcmp.16\t%0,%1\n\tbr.ltu\t%a\n" 2
-
-stmt:	LTI2(reg8,reg8)		"\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTI2(CVII2(reg8),CVII2(reg8))		"\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTI2(reg8,con)		"\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTI2(CVII2(reg8),con)		"\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTI2(CVUI2(reg8),con)		"\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTI2(reg8,CVII2(dref8)) "\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTI2(CVII2(reg8),CVII2(dref8)) "\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTI2(reg8,CVII2(reg8)) "\tcmpb.lt.8\t%0,%1,%a\n" 1
-stmt:	LTU2(reg8,reg8)		"\tcmp.8\t%0,%1\n\tbr.ltu\t%a\n" 2
-stmt:	LTU2(reg8,con)		"\tcmp.8\t%0,%1\n\tbr.ltu\t%a\n" 2
-stmt:	LTU2(reg8,CVUU2(dref8)) "\tcmp.8\t%0,%1\n\tbr.ltu\t%a\n" 2
-stmt:	LTU2(CVUU2(reg8),CVUU2(dref8)) "\tcmp.8\t%0,%1\n\tbr.ltu\t%a\n" 2
-stmt:	LTU2(reg8,CVUU2(reg8)) "\tcmp.8\t%0,%1\n\tbr.ltu\t%a\n" 2
-
-stmt:	LTI4(reg32,reg32)	"\tCMPBLT32(%0,%1,%a)\n" 5
-stmt:	LTI4(reg32,INDIRI4(faddr))	"\tCMPBLT32(%0,%1,%a)\n" 5
-stmt:	LTI4(mem,mem)	"\tCMPBLT32(%0,%1,%a)\n" 5
-stmt:	LTU4(reg32,reg32)	"\tCMPBLTU32(%0,%1,%a)\n" 5
-stmt:	LTU4(reg32,INDIRU4(faddr))	"\tCMPBLTU32(%0,%1,%a)\n" 5
-stmt:	LTU4(mem,mem)	"\tCMPBLTU32(%0,%1,%a)\n" 5
-stmt:	LTF4(regf64,regf64)	"\tCMPBLTF32(%0,%1,%a)\n" 5
-stmt:	LTF4(regf64,INDIRF4(faddr))	"\tCMPBLTF32(%0,%1,%a)\n" 5
-stmt:	LTF4(mem,mem)	"\tCMPBLTF32(%0,%1,%a)\n" 5
-stmt:	LTF8(regf64,regf64)	"\tCMPBLTF32(%0,%1,%a)\n" 5
-stmt:	LTF8(regf64,INDIRF8(faddr))	"\tCMPBLTF64(%0,%1,%a)\n" 5
-stmt:	LTF8(mem,mem)	"\tCMPBLTF64(%0,%1,%a)\n" 5
-
-stmt:	LEI2(reg,reg)		"\tcmpb.le.16\t%0,%1,%a\n" 1
-stmt:	LEI2(reg,con)		"\tcmpb.le.16\t%0,%1,%a\n" 1
-stmt:	LEI2(reg,dref16) "\tcmpb.le.16\t%0,%1,%a\n" 1
-stmt:	LEU2(reg,reg)		"\tcmp.16\t%0,%1\n\tbr.leu\t%a\n" 2
-stmt:	LEU2(reg,con)		"\tcmp.16\t%0,%1\n\tbr.leu\t%a\n" 2
-stmt:	LEU2(reg,dref16) "\tcmp.16\t%0,%1\n\tbr.leu\t%a\n" 2
-
-stmt:	LEI2(reg8,reg8)		"\tcmpb.le.8\t%0,%1,%a\n" 1
-stmt:	LEI2(CVII2(reg8),CVII2(reg8))		"\tcmpb.le.8\t%0,%1,%a\n" 1
-stmt:	LEI2(reg8,con)		"\tcmpb.le.8\t%0,%1,%a\n" 1
-stmt:	LEI2(CVII2(reg8),con)		"\tcmpb.le.8\t%0,%1,%a\n" 1
-stmt:	LEI2(reg8,CVII2(dref8)) "\tcmpb.le.8\t%0,%1,%a\n" 1
-stmt:	LEI2(CVII2(reg8),CVII2(dref8)) "\tcmpb.le.8\t%0,%1,%a\n" 1
-stmt:	LEI2(reg8,CVII2(reg8)) "\tcmpb.le.8\t%0,%1,%a\n" 1
-stmt:	LEU2(reg8,reg8)		"\tcmp.8\t%0,%1\n\tbr.leu\t%a\n" 2
-stmt:	LEU2(reg8,con)		"\tcmp.8\t%0,%1\n\tbr.leu\t%a\n" 2
-stmt:	LEU2(reg8,CVUU2(dref8)) "\tcmp.8\t%0,%1\n\tbr.leu\t%a\n" 2
-stmt:	LEU2(CVUU2(reg8),CVUU2(dref8)) "\tcmp.8\t%0,%1\n\tbr.leu\t%a\n" 2
-stmt:	LEU2(reg8,CVUU2(reg8)) "\tcmp.8\t%0,%1\n\tbr.leu\t%a\n" 2
-
-stmt:	LEI4(reg32,reg32)	"\tCMPBLE32(%0,%1,%a)\n" 5
-stmt:	LEI4(reg32,INDIRI4(faddr))	"\tCMPBLE32(%0,%1,%a)\n" 5
-stmt:	LEI4(mem,mem)	"\tCMPBLE32(%0,%1,%a)\n" 5
-stmt:	LEU4(reg32,reg32)	"\tCMPBLEU32(%0,%1,%a)\n" 5
-stmt:	LEU4(reg32,INDIRU4(faddr))	"\tCMPBLEU32(%0,%1,%a)\n" 5
-stmt:	LEU4(mem,mem)	"\tCMPBLEU32(%0,%1,%a)\n" 5
-stmt:	LEF4(regf64,regf64)	"\tCMPBLEF32(%0,%1,%a)\n" 5
-stmt:	LEF4(regf64,INDIRF4(faddr))	"\tCMPBLEF32(%0,%1,%a)\n" 5
-stmt:	LEF4(mem,mem)	"\tCMPBLEF32(%0,%1,%a)\n" 5
-stmt:	LEF8(regf64,regf64)	"\tCMPBLEF64(%0,%1,%a)\n" 5
-stmt:	LEF8(regf64,INDIRF8(faddr))	"\tCMPBLEF64(%0,%1,%a)\n" 5
-stmt:	LEF8(mem,mem)	"\tCMPBLEF64(%0,%1,%a)\n" 5
-
-stmt:	GTI2(reg,reg)		"\tcmpb.lt.16\t%1,%0,%a\n" 1
-stmt:	GTI2(con,reg)		"\tcmpb.lt.16\t%1,%0,%a\n" 1
-stmt:	GTI2(dref16,reg) "\tcmpb.lt.16\t%1,%0,%a\n" 1
-stmt:	GTU2(reg,reg)		"\tcmp.16\t%1,%0\n\tbr.ltu\t%a\n" 2
-stmt:	GTU2(con,reg)		"\tcmp.16\t%1,%0\n\tbr.ltu\t%a\n" 2
-stmt:	GTU2(dref16,reg) "\tcmp.16\t%1,%0\n\tbr.ltu\t%a\n" 2
-
-stmt:	GTI2(reg8,reg8)		"\tcmpb.lt.8\t%1,%0,%a\n" 1
-stmt:	GTI2(CVII2(reg8),CVII2(reg8))		"\tcmpb.lt.8\t%1,%0,%a\n" 1
-stmt:	GTI2(con,reg8)		"\tcmpb.lt.8\t%1,%0,%a\n" 1
-stmt:	GTI2(con,CVII2(reg8))		"\tcmpb.lt.8\t%1,%0,%a\n" 1
-stmt:	GTI2(CVII2(dref8),reg8) "\tcmpb.lt.8\t%1,%0,%a\n" 1
-stmt:	GTI2(CVII2(dref8),CVII2(reg8)) "\tcmpb.lt.8\t%1,%0,%a\n" 1
-stmt:	GTI2(CVII2(reg8),reg8) "\tcmpb.lt.8\t%1,%0,%a\n" 1
-stmt:	GTU2(reg8,reg8)		"\tcmp.8\t%1,%0\n\tbr.ltu\t%a\n" 2
-stmt:	GTU2(con,reg8)		"\tcmp.8\t%1,%0\n\tbr.ltu\t%a\n" 2
-stmt:	GTU2(CVUU2(dref8),reg8) "\tcmp.8\t%1,%0\n\tbr.ltu\t%a\n" 2
-stmt:	GTU2(CVUU2(dref8),CVUU2(reg8)) "\tcmp.8\t%1,%0\n\tbr.ltu\t%a\n" 2
-stmt:	GTU2(CVUU2(reg8),reg8) "\tcmp.8\t%1,%0\n\tbr.ltu\t%a\n" 2
-
-stmt:	GTI4(reg32,reg32)	"\tCMPBLT32(%1,%0,%a)\n" 5
-stmt:	GTI4(INDIRI4(faddr),reg32)	"\tCMPBLT32(%1,%0,%a)\n" 5
-stmt:	GTI4(mem,mem)	"\tCMPBLT32(%1,%0,%a)\n" 5
-stmt:	GTU4(reg32,reg32)	"\tCMPBLTU32(%1,%0,%a)\n" 5
-stmt:	GTU4(INDIRU4(faddr),reg32)	"\tCMPBLTU32(%1,%0,%a)\n" 5
-stmt:	GTU4(mem,mem)	"\tCMPBLTU32(%1,%0,%a)\n" 5
-stmt:	GTF4(regf64,regf64)	"\tCMPBLTF32(%1,%0,%a)\n" 5
-stmt:	GTF4(INDIRF4(faddr),regf64)	"\tCMPBLTF32(%1,%0,%a)\n" 5
-stmt:	GTF4(mem,mem)	"\tCMPBLTF32(%1,%0,%a)\n" 5
-stmt:	GTF8(regf64,regf64)	"\tCMPBLTF64(%1,%0,%a)\n" 5
-stmt:	GTF8(INDIRF8(faddr),regf64)	"\tCMPBLTF64(%1,%0,%a)\n" 5
-stmt:	GTF8(mem,mem)	"\tCMPBLTF64(%1,%0,%a)\n" 5
-
-stmt:	GEI2(reg,reg)		"\tcmpb.le.16\t%1,%0,%a\n" 1
-stmt:	GEI2(con,reg)		"\tcmpb.le.16\t%1,%0,%a\n" 1
-stmt:	GEI2(dref16,reg) "\tcmpb.le.16\t%1,%0,%a\n" 1
-stmt:	GEU2(reg,reg)		"\tcmp.16\t%1,%0\n\tbr.leu\t%a\n" 2
-stmt:	GEU2(con,reg)		"\tcmp.16\t%1,%0\n\tbr.leu\t%a\n" 2
-stmt:	GEU2(dref16,reg) "\tcmp.16\t%1,%0\n\tbr.leu\t%a\n" 2
-
-stmt:	GEI2(reg8,reg8)		"\tcmpb.le.8\t%1,%0,%a\n" 1
-stmt:	GEI2(CVII2(reg8),CVII2(reg8))		"\tcmpb.le.8\t%1,%0,%a\n" 1
-stmt:	GEI2(con,reg8)		"\tcmpb.le.8\t%1,%0,%a\n" 1
-stmt:	GEI2(con,CVII2(reg8))		"\tcmpb.le.8\t%1,%0,%a\n" 1
-stmt:	GEI2(CVII2(dref8),reg8) "\tcmpb.le.8\t%1,%0,%a\n" 1
-stmt:	GEI2(CVII2(dref8),CVII2(reg8)) "\tcmpb.le.8\t%1,%0,%a\n" 1
-stmt:	GEI2(CVII2(reg8),reg8) "\tcmpb.le.8\t%1,%0,%a\n" 1
-stmt:	GEU2(reg8,reg8)		"\tcmp.8\t%1,%0\n\tbr.leu\t%a\n" 2
-stmt:	GEU2(con,reg8)		"\tcmp.8\t%1,%0\n\tbr.leu\t%a\n" 2
-stmt:	GEU2(CVUU2(dref8),reg8) "\tcmp.8\t%1,%0\n\tbr.leu\t%a\n" 2
-stmt:	GEU2(CVUU2(dref8),CVUU2(reg8)) "\tcmp.8\t%1,%0\n\tbr.leu\t%a\n" 2
-stmt:	GEU2(CVUU2(reg8),reg8) "\tcmp.8\t%1,%0\n\tbr.leu\t%a\n" 2
-
-stmt:	GEI4(reg32,reg32)	"\tCMPBLE32(%1,%0,%a)\n" 5
-stmt:	GEI4(INDIRI4(faddr),reg32)	"\tCMPBLE32(%1,%0,%a)\n" 5
-stmt:	GEI4(mem,mem)	"\tCMPBLE32(%1,%0,%a)\n" 5
-stmt:	GEU4(reg32,reg32)	"\tCMPBLEU32(%1,%0,%a)\n" 5
-stmt:	GEU4(INDIRU4(faddr),reg32)	"\tCMPBLEU32(%1,%0,%a)\n" 5
-stmt:	GEU4(mem,mem)	"\tCMPBLEU32(%1,%0,%a)\n" 5
-stmt:	GEF4(regf64,regf64)	"\tCMPBLEF32(%1,%0,%a)\n" 5
-stmt:	GEF4(INDIRF4(faddr),regf64)	"\tCMPBLEF32(%1,%0,%a)\n" 5
-stmt:	GEF4(mem,mem)	"\tCMPBLEF32(%1,%0,%a)\n" 5
-stmt:	GEF8(regf64,regf64)	"\tCMPBLEF64(%1,%0,%a)\n" 5
-stmt:	GEF8(INDIRF8(faddr),regf64)	"\tCMPBLEF64(%1,%0,%a)\n" 5
-stmt:	GEF8(mem,mem)	"\tCMPBLEF64(%1,%0,%a)\n" 5
-
-faddr:	ADDRGP2	"%a-$global$(dp)"  LBURG_MAX
-faddr:	ADDRGP2	"%a(dp)" 
-faddr:	ADDRLP2	"%a+%F(sp)" 
-faddr:	ADDRFP2	"%a+4+%F(sp)"
-vaddr:	ADDP2(reg,con) "%1(%0)" 
-
-dref16:	INDIRP2(addr)	"%0"
-dref16:	INDIRI2(addr)	"%0"
-dref16:	INDIRU2(addr)	"%0"
-dref16:	LOADU2(dref16)	"%0"
-dref16:	LOADI2(dref16)	"%0"
-dref16:	LOADP2(dref16)	"%0"
-dref16:	INDIRP2(reg)	"0(%0)"
-dref16:	INDIRI2(reg)	"0(%0)"
-dref16:	INDIRU2(reg)	"0(%0)"
-
-dref8:	INDIRI1(addr)	"%0"
-dref8:	INDIRU1(addr)	"%0"
-dref8:	INDIRI1(reg)	"0(%0)"
-dref8:	INDIRU1(reg)	"0(%0)"
-
-
-addr:	faddr	"%0"
-addr:	vaddr	"%0"
-
-stmt:	reg  ""
-stmt:	LABELV	"%a:\n"
-reg:	ADDRGP2	"\tld.16\t%c,%a\n" 1
-reg:	ADDRLP2	"\tlea\t%c,%a+%F(sp)\n" 1
-reg:	ADDRFP2	"\tlea\t%c,%a+4+%F(sp)\n" 1
-
-reg8:	INDIRI1(reg)	"\tld.8\t%c,0(%0)\n"	1
-reg:	INDIRI1(reg)	"\tld.8\t%c,0(%0)\n"	1
-reg8:	INDIRI1(addr)	"\tld.8\t%c,%0\n"	1
-reg:	INDIRI1(addr)	"\tld.8\t%c,%0\n"	1
-
-reg8:	INDIRU1(reg)	"\tld.8\t%c,0(%0)\n"	1
-reg:	INDIRU1(reg)	"\tld.8\t%c,0(%0)\n"	1
-reg8:	INDIRU1(addr)	"\tld.8\t%c,%0\n"	1
-reg:	INDIRU1(addr)	"\tld.8\t%c,%0\n"	1
-
-reg:	INDIRI2(reg)	"\tld.16\t%c,0(%0)\n"	1
-reg:	INDIRI2(addr)	"\tld.16\t%c,%0\n"	1
-reg:	INDIRU2(reg)	"\tld.16\t%c,0(%0)\n"	1
-reg:	INDIRU2(addr)	"\tld.16\t%c,%0\n"	1
-
-reg:	INDIRP2(reg)	"\tld.16\t%c,0(%0)\n"	1
-reg:	INDIRP2(addr)	"\tld.16\t%c,%0\n"	1
-
-reg32:	INDIRI4(reg)	"\tCOPY32(%c,0(%0))\n"	4
-reg32:	INDIRI4(faddr)	"\tCOPY32(%c,%0)\n"	4
-reg32:	INDIRU4(reg)	"\tCOPY32(%c,0(%0))\n"	4
-reg32:	INDIRU4(faddr)	"\tCOPY32(%c,%0)\n"	4
-regf64:	INDIRF4(reg)	"\tCOPY32(%c,0(%0))\n"	4
-regf64:	INDIRF4(faddr)	"\tCOPY32(%c,%0)\n"	4
-regf64:	INDIRF8(reg)	"\tCOPY64(%c,0(%0))\n"	4
-regf64:	INDIRF8(faddr)	"\tCOPY64(%c,%0)\n"	4
-
-ar:	reg	"%0"
-ar:	ADDRGP2	"%a"
-
-reg:	CALLI2(ar)	"\tcall\t%0\n"	1
-reg:	CALLU2(ar)	"\tcall\t%0\n"	1
-reg:	CALLP2(ar)	"\tcall\t%0\n"	1
-reg32:	CALLI4(ar)	"\tcall\t%0\n\tst.16\t2+%c,a\n\tst.16\t%c,b\n"	3
-reg:	CALLI4(ar)	"\tcall\t%0\n"	1
-reg32:	CALLU4(ar)	"\tcall\t%0\n\tst.16\t2+%c,a\n\tst.16\t%c,b\n"	3
-reg:	CALLU4(ar)	"\tcall\t%0\n"	1
-stmt:	CALLV(ar)	"\tcall\t%0\n"	1
-stmt:	CALLB(ar,reg)	"\tcall\t%0\n" 1
-regf64:	CALLF4(ar)	"\tcall\t%0\n\tst.16\t2+%c,a\n\tst.16\t%c,b\n"	3
-reg:	CALLF4(ar)	"\tcall\t%0 ; bogus? \n"	1
-regf64:	CALLF8(ar)	"\tlea\ta,%c\n\tcall\t%0\n" 1
-stmt:	CALLF8(ar)	"\tlea\ta,%c\n\tcall\t%0\n" 1
-
-stmt:	RETI2(reg)	"# rtarget should have handled it\n" 1
-stmt:	RETU2(reg)	"# rtarget should have handled it\n" 1
-stmt:	RETP2(reg)	"# rtarget should have handled it\n" 1
-stmt:	RETI4(reg32)	"# Let emit2 fix up\n" 1
-stmt:	RETU4(reg32)	"# Let emit2 fix up\n" 1
-stmt:	RETF4(regf64)	"# Let emit2 fix up\n" 1
-stmt:	RETF8(regf64)	"# Let emit2 fix up\n" 1
-stmt:	RETV(reg)	"# ret\n" 1
-
-stmt:	ARGP2(reg)	"# Let emit2 handle args\n" 1
-stmt:	ARGI2(reg)	"# Let emit2 handle args\n" 1
-stmt:	ARGU2(reg)	"# Let emit2 handle args\n" 1
-stmt:	ARGI4(reg32)	"# Let emit2 handle args\n" 1
-stmt:	ARGU4(reg32)	"# Let emit2 handle args\n" 1
-stmt:	ARGF4(regf64)	"# Let emit2 handle args\n" 1
-stmt:	ARGF8(regf64)	"# Let emit2 handle args\n" 1
-
-
-stmt:	JUMPV(ar)	"\tbr\t%0\n"	1
-
-mem:	INDIRI4(faddr)	"%0"
-mem:	INDIRU4(faddr)	"%0"
-mem:	INDIRF4(faddr)	"%0"
-mem:	INDIRF8(faddr)	"%0"
-mem:	reg32	"%0"
-mem:	regf64	"%0"
-
-stmt:	ASGNI1(reg,reg8)    	"\tst.8\t0(%0),%1\n"	1
-stmt:	ASGNI1(addr,reg8)	"\tst.8\t%0,%1\n"	1
-stmt:	ASGNU1(reg,reg8)	"\tst.8\t0(%0),%1\n"	1
-stmt:	ASGNU1(addr,reg8)	"\tst.8\t%0,%1\n"	1
-stmt:	ASGNI2(reg,reg)		"\tst.16\t0(%0),%1\n"	1
-stmt:	ASGNI2(addr,reg)	"\tst.16\t%0,%1\n"	1
-stmt:	ASGNU2(reg,reg)		"\tst.16\t0(%0),%1\n"	1
-stmt:	ASGNU2(addr,reg)	"\tst.16\t%0,%1\n"	1
-stmt:	ASGNP2(reg,reg)		"\tst.16\t0(%0),%1\n"	1
-stmt:	ASGNP2(addr,reg)	"\tst.16\t%0,%1\n"	1
-
-stmt:	ASGNB(reg,INDIRB(reg))	"\tld.16\tc,%a\n\tmemcopy\n"
-stmt:	ARGB(INDIRB(reg))	"# let emit2 handle %0\n"
-
-stmt:	ASGNI4(reg,reg32)	"\tCOPY32(0(%0),%1)\n"	4
-stmt:	ASGNI4(faddr,reg32)	"\tCOPY32(%0,%1)\n"	4
-stmt:	ASGNI4(faddr,INDIRI4(faddr))	"\tCOPY32(%0,%1)\n"	4
-
-stmt:	ASGNU4(reg,reg32)	"\tCOPY32(0(%0),%1)\n"	4
-stmt:	ASGNU4(faddr,reg32)	"\tCOPY32(%0,%1)\n"	4
-stmt:	ASGNU4(faddr,INDIRU4(faddr))	"\tCOPY32(%0,%1)\n"	4
-
-stmt:	ASGNF4(reg,regf64)	"\tCOPY32(0(%0),%1)\n"	4
-stmt:	ASGNF4(faddr,regf64)	"\tCOPY32(%0,%1)\n"	4
-stmt:	ASGNF4(faddr,INDIRF4(faddr))	"\tCOPY32(%0,%1)\n"	4
-stmt:	ASGNF8(reg,regf64)	"\tCOPY64(0(%0),%1)\n"	4
-stmt:	ASGNF8(faddr,regf64)	"\tCOPY64(%0,%1)\n"	4
-stmt:	ASGNF8(faddr,INDIRF8(faddr))	"\tCOPY64(%0,%1)\n"	4
-
-stmt:	ASGNI4(faddr,ADDI4(mem,mem))	"\tADD32(%1,%2)\n" memop(a)
-stmt:	ASGNI4(faddr,ADDI4(mem,mem))	"\tADD32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNU4(faddr,ADDI4(mem,mem))	"\tADD32(%1,%2)\n" memop(a)
-stmt:	ASGNU4(faddr,ADDI4(mem,mem))	"\tADD32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNF4(faddr,ADDF4(mem,mem))	"\tFADD32(%1,%2)\n" memop(a)
-stmt:	ASGNF4(faddr,ADDF4(mem,mem))	"\tFADD32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNF8(faddr,ADDF8(mem,mem))	"\tFADD64(%1,%2)\n" memop(a)
-stmt:	ASGNF8(faddr,ADDF8(mem,mem))	"\tFADD64(%2,%1)\n" flip_memop(a)
-
-stmt:	ASGNI4(faddr,ADDI4(mem,mem))	"\tCOPY32(%0,%1)\n\tADD32(%0,%2)\n" 4
-stmt:	ASGNU4(faddr,ADDU4(mem,mem))	"\tCOPY32(%0,%1)\n\tADD32(%0,%2)\n" 4
-stmt:	ASGNF4(faddr,ADDF4(mem,mem))	"\tCOPY32(%0,%1)\n\tFADD32(%0,%2)\n" 4
-stmt:	ASGNF8(faddr,ADDF8(mem,mem))	"\tCOPY64(%0,%1)\n\tFADD64(%0,%2)\n" 4
-
-stmt:	ASGNI4(faddr,SUBI4(mem,mem))	"\tSUB32(%1,%2)\n" memop(a)
-stmt:	ASGNU4(faddr,SUBI4(mem,mem))	"\tSUB32(%1,%2)\n" memop(a)
-stmt:	ASGNF4(faddr,SUBF4(mem,mem))	"\tFSUB32(%1,%2)\n" memop(a)
-stmt:	ASGNF8(faddr,SUBF8(mem,mem))	"\tFSUB64(%1,%2)\n" memop(a)
-
-stmt:	ASGNI4(faddr,SUBI4(mem,mem))	"\tCOPY32(%0,%1)\n\tSUB32(%0,%2)\n" 4
-stmt:	ASGNU4(faddr,SUBU4(mem,mem))	"\tCOPY32(%0,%1)\n\tSUB32(%0,%2)\n" 4
-stmt:	ASGNF4(faddr,SUBF4(mem,mem))	"\tCOPY32(%0,%1)\n\tFSUB32(%0,%2)\n" 4
-stmt:	ASGNF8(faddr,SUBF8(mem,mem))	"\tCOPY64(%0,%1)\n\tFSUB64(%0,%2)\n" 4
-
-stmt:	ASGNI4(faddr,MULI4(mem,mem))	"\tMULI32(%1,%2)\n" memop(a)
-stmt:	ASGNI4(faddr,MULI4(mem,mem))	"\tMULI32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNU4(faddr,MULI4(mem,mem))	"\tMULU32(%1,%2)\n" memop(a)
-stmt:	ASGNU4(faddr,MULI4(mem,mem))	"\tMULU32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNF4(faddr,MULF4(mem,mem))	"\tFMUL32(%1,%2)\n" memop(a)
-stmt:	ASGNF4(faddr,MULF4(mem,mem))	"\tFMUL32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNF8(faddr,MULF8(mem,mem))	"\tFMUL64(%1,%2)\n" memop(a)
-stmt:	ASGNF8(faddr,MULF8(mem,mem))	"\tFMUL64(%2,%1)\n" flip_memop(a)
-
-stmt:	ASGNI4(faddr,MULI4(mem,mem))	"\tCOPY32(%0,%1)\n\tMULI32(%0,%2)\n" 4
-stmt:	ASGNU4(faddr,MULU4(mem,mem))	"\tCOPY32(%0,%1)\n\tMULU32(%0,%2)\n" 4
-stmt:	ASGNF4(faddr,MULF4(mem,mem))	"\tCOPY32(%0,%1)\n\tFMUL32(%0,%2)\n" 4
-stmt:	ASGNF8(faddr,MULF8(mem,mem))	"\tCOPY64(%0,%1)\n\tFMUL64(%0,%2)\n" 4
-
-stmt:	ASGNI4(faddr,DIVI4(mem,mem))	"\tDIVI32(%1,%2)\n" memop(a)
-stmt:	ASGNU4(faddr,DIVI4(mem,mem))	"\tDIVU32(%1,%2)\n" memop(a)
-stmt:	ASGNF4(faddr,DIVF4(mem,mem))	"\tFDIV32(%1,%2)\n" memop(a)
-stmt:	ASGNF8(faddr,DIVF8(mem,mem))	"\tFDIV64(%1,%2)\n" memop(a)
-
-stmt:	ASGNI4(faddr,DIVI4(mem,mem))	"\tCOPY32(%0,%1)\n\tDIVI32(%0,%2)\n" 4
-stmt:	ASGNU4(faddr,DIVU4(mem,mem))	"\tCOPY32(%0,%1)\n\tDIVU32(%0,%2)\n" 4
-stmt:	ASGNF4(faddr,DIVF4(mem,mem))	"\tCOPY32(%0,%1)\n\tFDIV32(%0,%2)\n" 4
-stmt:	ASGNF8(faddr,DIVF8(mem,mem))	"\tCOPY64(%0,%1)\n\tFDIV64(%0,%2)\n" 4
-
-stmt:	ASGNI4(faddr,BANDI4(mem,mem))	"\tAND32(%1,%2)\n" memop(a)
-stmt:	ASGNI4(faddr,BANDI4(mem,mem))	"\tAND32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNU4(faddr,BANDU4(mem,mem))	"\tAND32(%1,%2)\n" memop(a)
-stmt:	ASGNU4(faddr,BANDU4(mem,mem))	"\tAND32(%2,%1)\n" flip_memop(a)
-
-stmt:	ASGNI4(faddr,BANDI4(mem,mem))	"\tCOPY32(%0,%1)\n\tAND32(%0,%2)\n" 4
-stmt:	ASGNI4(faddr,BANDU4(mem,mem))	"\tCOPY32(%0,%1)\n\tAND32(%0,%2)\n" 4
-
-stmt:	ASGNI4(faddr,BORI4(mem,mem))	"\tOR32(%1,%2)\n" memop(a)
-stmt:	ASGNI4(faddr,BORI4(mem,mem))	"\tOR32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNU4(faddr,BORU4(mem,mem))	"\tOR32(%1,%2)\n" memop(a)
-stmt:	ASGNU4(faddr,BORU4(mem,mem))	"\tOR32(%2,%1)\n" flip_memop(a)
-
-stmt:	ASGNI4(faddr,BORI4(mem,mem))	"\tCOPY32(%0,%1)\n\tOR32(%0,%2)\n" 4
-stmt:	ASGNI4(faddr,BORU4(mem,mem))	"\tCOPY32(%0,%1)\n\tOR32(%0,%2)\n" 4
-
-stmt:	ASGNI4(faddr,BXORI4(mem,mem))	"\tXOR32(%1,%2)\n" memop(a)
-stmt:	ASGNI4(faddr,BXORI4(mem,mem))	"\tXOR32(%2,%1)\n" flip_memop(a)
-stmt:	ASGNU4(faddr,BXORU4(mem,mem))	"\tXOR32(%1,%2)\n" memop(a)
-stmt:	ASGNU4(faddr,BXORU4(mem,mem))	"\tXOR32(%2,%1)\n" flip_memop(a)
-
-stmt:	ASGNI4(faddr,BXORI4(mem,mem))	"\tCOPY32(%0,%1)\n\tXOR32(%0,%2)\n" 4
-stmt:	ASGNI4(faddr,BXORU4(mem,mem))	"\tCOPY32(%0,%1)\n\tXOR32(%0,%2)\n" 4
+con4: CNSTP4  "%a"
+conf4: CNSTF4  "%a"
+con8: CNSTI8  "%a"
+con8: CNSTU8  "%a"
+conf8: CNSTF8  "%a"
+
+con: con4 "%0"
+con: con8 "%0"
+con: conf4 "%0"
+con: conf8 "%0"
+
+codeaddr: ADDRGP4         "%a"
+dataaddr: ADDRGP4         "global[%a]"
+dataaddr: ADDRFP4         "arg[%a]"
+dataaddr: ADDRLP4         "local[%a]"
+
+addr: dataaddr        "%0"
+
+
+addrRegCon: reg "%0"
+addrRegCon: con "%0"
+addrRegCon: addr "%0"
+
+
+rc:  con            "%0"
+rc:  reg            "%0"
+
+rc5: CNSTI4         "%a"                range(a,0,31)
+rc5: reg            "%0"
 
+
+ar:   ADDRGP4     "%a"
+ar:   reg         "%0"
+ar:   CNSTP4      "CNSTP4:%a"   range(a, 0, 0x0fffffff)
+
+
+stmt: reg  ""
+
+
+
+reg: CNSTI1  "const.1 %c = %a\n"
+reg: CNSTU1  "const.1 %c = %a\n"
+reg: CNSTI2  "const.2 %c = %a\n"
+reg: CNSTU2  "const.2 %c = %a\n"
+reg: CNSTI4  "const.4 %c = %a\n"
+reg: CNSTU4  "const.4 %c = %a\n"
+reg: CNSTP4  "const.4 %c = %a\n"
+reg: CNSTF4  "const.f4 %c = %a\n"
+reg: CNSTI8  "const.8 %c = %a\n"
+reg: CNSTU8  "const.8 %c = %a\n"
+reg: CNSTF8  "const.f8 %c = %a\n"
+
+
+reg: dataaddr                 "loadAddrOf %c = %0\n"      1
+reg: ADDP4(dataaddr, con)     "loadAddrOf %c = %0 + %1\n" 1
+
+reg: LOADI1(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADU1(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADI2(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADU2(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADI4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADP4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADU4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADF4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADF8(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_DRG_COPY)
+
+
+stmt: ASGNI1(dataaddr,reg)  "stor.1 %0 = %1\n"  1
+stmt: ASGNU1(dataaddr,reg)  "stor.1 %0 = %1\n"  1
+stmt: ASGNI2(dataaddr,reg)  "stor.2 %0 = %1\n"  1
+stmt: ASGNU2(dataaddr,reg)  "stor.2 %0 = %1\n"  1
+stmt: ASGNI4(dataaddr,reg)  "stor.4 %0 = %1\n"  1
+stmt: ASGNU4(dataaddr,reg)  "stor.4 %0 = %1\n"  1
+stmt: ASGNP4(dataaddr,reg)  "stor.4 %0 = %1\n"  1
+stmt: ASGNF4(dataaddr,reg)  "stor.4 %0 = %1\n"  1
+stmt: ASGNF8(dataaddr,reg)  "stor.8 %0 = %1\n"  1
+
+
+stmt: ASGNI1(reg,reg)  "stor.1 *%0 = %1\n"  1
+stmt: ASGNU1(reg,reg)  "stor.1 *%0 = %1\n"  1
+stmt: ASGNI2(reg,reg)  "stor.2 *%0 = %1\n"  1
+stmt: ASGNU2(reg,reg)  "stor.2 *%0 = %1\n"  1
+stmt: ASGNI4(reg,reg)  "stor.4 *%0 = %1\n"  1
+stmt: ASGNU4(reg,reg)  "stor.4 *%0 = %1\n"  1
+stmt: ASGNP4(reg,reg)  "stor.4 *%0 = %1\n"  1
+stmt: ASGNF4(reg,reg)  "stor.4 *%0 = %1\n"  1
+stmt: ASGNF8(reg,reg)  "stor.8 *%0 = %1\n"  1
+
+
+reg:  INDIRI1(dataaddr)     "load.i1 %c = %0\n"  1
+reg:  INDIRU1(dataaddr)     "load.u2 %c = %0\n"  1
+reg:  INDIRI2(dataaddr)     "load.i2 %c = %0\n"  1
+reg:  INDIRU2(dataaddr)     "load.u2 %c = %0\n"  1
+reg:  INDIRI4(dataaddr)     "load.i4 %c = %0\n"  10
+reg:  INDIRU4(dataaddr)     "load.u4 %c = %0\n"  1
+reg:  INDIRP4(dataaddr)     "load.p4 %c = %0\n"  1
+reg:  INDIRF4(dataaddr)     "load.f4 %c = %0\n"  10
+reg:  INDIRF8(dataaddr)     "load.f8 %c = %0\n"  1
+
+reg:  INDIRI1(reg)     "load.i1 %c =* %0\n"  1
+reg:  INDIRU1(reg)     "load.u2 %c =* %0\n"  1
+reg:  INDIRI2(reg)     "load.i2 %c =* %0\n"  1
+reg:  INDIRU2(reg)     "load.u2 %c =* %0\n"  1
+reg:  INDIRI4(reg)     "load.i4 %c =* %0\n"  10
+reg:  INDIRU4(reg)     "load.u4 %c =* %0\n"  1
+reg:  INDIRP4(reg)     "load.p4 %c =* %0\n"  1
+reg:  INDIRF4(reg)     "load.f4 %c =* %0\n"  10
+reg:  INDIRF8(reg)     "load.f8 %c =* %0\n"  1
+
+
+
+reg:  CVII4(INDIRI1(dataaddr))     "<X> load.i1 %c = %0\n"  
+reg:  CVUI4(INDIRU1(dataaddr))     "<X> load.u1 %c = %0\n"  
+reg:  CVII4(INDIRI2(dataaddr))     "<X> load.i2 %c = %0\n" 5
+reg:  CVUU4(INDIRU2(dataaddr))     "<X> load.u2 %c = %0\n"  
+
+reg: CVII4(reg)  "<X> sll $%c,$%0,8*(4-%a); sra $%c,$%c,8*(4-%a)\n" 10
+reg: CVUI4(reg)  "<X> and $%c,$%0,(1<<(8*%a))-1\n"  
+reg: CVUU4(reg)  "<X> and $%c,$%0,(1<<(8*%a))-1\n"  
+reg: CVFF4(reg)  "<X> cvt.s.d $f%c,$f%0\n"  
+reg: CVFF8(reg)  "<X> cvt.d.s $f%c,$f%0\n"  
+reg: CVIF4(reg)  "<X> mtc1 $%0,$f%c; cvt.s.w $f%c,$f%c\n"  
+reg: CVIF8(reg)  "<X> mtc1 $%0,$f%c; cvt.d.w $f%c,$f%c\n"  
+reg: CVFI4(reg)  "<X> trunc.w.s $f2,$f%0,$%c; mfc1 $%c,$f2\n"  (a->syms[0]->u.c.v.i==4?2:LBURG_MAX)
+reg: CVFI4(reg)  "<X> trunc.w.d $f2,$f%0,$%c; mfc1 $%c,$f2\n"  (a->syms[0]->u.c.v.i==8?2:LBURG_MAX)
+
+
+
+
+reg: BANDI4(reg,rc)  "and.i4  %c = %0 & %1\n"   1
+reg: BANDU4(reg,rc)  "and.u4  %c = %0 & %1\n"   1
+reg: BORI4(reg,rc)   "or.i4   %c = %0 | %1\n"    1
+reg: BORU4(reg,rc)   "or.u4   %c = %0 | %1\n"    1
+reg: BXORI4(reg,rc)  "xor.i4  %c = %0 ^ %1\n"   1
+reg: BXORU4(reg,rc)  "xor.u4  %c = %0 ^ %1\n"   1
+reg: NEGF4(reg)      "neg.f4  %c = NEG? %0\n"       1
+reg: NEGF8(reg)      "neg.f8  %c = NEG? %0\n"       1
+reg: NEGI4(reg)      "neg.i4  %c = NEG? %0\n"  1
+reg: BCOMI4(reg)     "not.i4  %c = BCOM? %0\n"   1
+reg: BCOMU4(reg)     "not.u4  %c = BCOM? %0\n"   1
+reg: LSHI4(reg,rc5)  "lsh.i4  %c = $%0 << %1\n"  1
+reg: LSHU4(reg,rc5)  "lsh.u4  %c = $%0 << %1\n"  1
+reg: RSHI4(reg,rc5)  "rsh.i4  %c = $%0 >> %1\n"  1
+reg: RSHU4(reg,rc5)  "rsh.u4  %c = $%0 >> %1\n"  1
+reg: ADDI4(reg,rc)   "add.i4  %c = %0 + %1\n"  1
+reg: ADDU4(reg,rc)   "add.u4  %c = %0 + %1\n"  1
+reg: ADDP4(reg,rc)   "add.p4  %c = %0 + %1\n"  1
+reg: ADDF4(reg,reg)  "add.f4  %c = %0 + %1\n"  1
+reg: ADDF8(reg,reg)  "add.f8  %c = %0 + %1\n"  1
+reg: SUBI4(reg,rc)   "sub.i4  %c = %0 - %1\n"  1
+reg: SUBU4(reg,rc)   "sub.u4  %c = %0 - %1\n"  1
+reg: SUBP4(reg,rc)   "sub.p4  %c = %0 - %1\n"  1
+reg: SUBF4(reg,reg)  "sub.f4  %c = %0 - %1\n"  1
+reg: SUBF8(reg,reg)  "sub.f8  %c = %0 - %1\n"  1
+reg: DIVI4(reg,reg)  "div.i4  %c = %0 / %1\n"   1
+reg: DIVU4(reg,reg)  "div.u4  %c = %0 / %1\n"  1
+reg: DIVF4(reg,reg)  "div.f4  %c = %0 / %1\n"  1
+reg: DIVF8(reg,reg)  "div.f8  %c = %0 / %1\n"  1
+reg: MULI4(reg,reg)  "mul.i4  %c = %0 * %1\n"   1
+reg: MULU4(reg,reg)  "mul.u4  %c = %0 * %1\n"   1
+reg: MULF4(reg,reg)  "mul.f4  %c = %0 * %1\n"  1
+reg: MULF8(reg,reg)  "mul.f8  %c = %0 * %1\n"  1
+reg: MODI4(reg,reg)  "mod.i4  %c = %0 % %1\n"   1
+reg: MODU4(reg,reg)  "mod.u4  %c = %0 % %1\n"  1
+
+
+
+
+stmt: LABELV         "%a:\n"
+
+stmt: JUMPV(reg)     "jmp* %0\n" 1
+stmt: JUMPV(codeaddr)    "jmp %0\n" 1
+
+stmt: EQI4(reg,con)  "jmp ??? %a if.4 %0 == %1\n"   1
+stmt: EQI2(reg,con)  "jmp ??? %a if.2 %0 == %1\n"   1
+
+stmt: EQI4(reg,reg)  "jmp ??? %a if    %0 == %1\n"   5
+stmt: EQU4(reg,reg)  "jmp ??? %a if.u4 %0 == %1\n"   1
+stmt: GEI4(reg,reg)  "jmp ??? %a if    %0 >= %1\n"   1
+stmt: GEU4(reg,reg)  "jmp ??? %a if.u4 %0 >= %1\n"  1
+stmt: GTI4(reg,reg)  "jmp ??? %a if    %0 >  %1\n"   1
+stmt: GTU4(reg,reg)  "jmp ??? %a if.u4 %0 >  %1\n"  1
+stmt: LEI4(reg,reg)  "jmp ??? %a if    %0 <= %1\n"   1
+stmt: LEU4(reg,reg)  "jmp ??? %a if.u4 %0 <= %1\n"  1
+stmt: LTI4(reg,reg)  "jmp ??? %a if    %0 <  %1\n"   1
+stmt: LTU4(reg,reg)  "jmp ??? %a if.u4 %0 <  %1\n"  1
+stmt: NEI4(reg,reg)  "jmp ??? %a if    %0 != %1\n"   1
+stmt: NEU4(reg,reg)  "jmp ??? %a if.u4 %0 != %1\n"   1
+
+stmt: EQF4(reg,reg)  "BRANCH_IF_EQ_F4(%a, %0, %1)\n"  2
+stmt: EQF8(reg,reg)  "BRANCH_IF_EQ_F8(%a, %0, %1)\n"  2
+stmt: LEF4(reg,reg)  "BRANCH_IF_LE_F4(%a, %0, %1)\n"  2
+stmt: LEF8(reg,reg)  "BRANCH_IF_LE_F8(%a, %0, %1)\n"  2
+stmt: LTF4(reg,reg)  "BRANCH_IF_LT_F4(%a, %0, %1)\n"  2
+stmt: LTF8(reg,reg)  "BRANCH_IF_LT_F8(%a, %0, %1)\n"  2
+stmt: GEF4(reg,reg)  "BRANCH_IF_GE_F4(%a, %0, %1)\n"  2
+stmt: GEF8(reg,reg)  "BRANCH_IF_GE_F8(%a, %0, %1)\n"  2
+stmt: GTF4(reg,reg)  "BRANCH_IF_GT_F4(%a, %0, %1)\n"  2
+stmt: GTF8(reg,reg)  "BRANCH_IF_GT_F8(%a, %0, %1)\n"  2
+stmt: NEF4(reg,reg)  "BRANCH_IF_NE_F4(%a, %0, %1)\n"  2
+stmt: NEF8(reg,reg)  "BRANCH_IF_NE_F8(%a, %0, %1)\n"  2
+
+
+reg:  CALLF4(ar)  "f4.call  %c = %0()\nbn.pop  %a\n"  1
+reg:  CALLF8(ar)  "f8.call  %c = %0()\nbn.pop  %a\n"  1
+reg:  CALLI4(ar)  "i4.call  %c = %0()\nbn.pop  %a<why 4 too big but ok if left_to_right>\n"  1
+reg:  CALLP4(ar)  "p4.call  %c = %0()\nbn.pop  %a\n"  1
+reg:  CALLU4(ar)  "u4.call  %c = %0()\nbn.pop  %a\n"  1
+stmt: CALLV(ar)   "vo.call       %0()\nbn.pop  %a\n"  1
+
+
+stmt: RETF4(addrRegCon)  "exitReturning.4 %0\n"  1
+stmt: RETF8(addrRegCon)  "exitReturning.8 %0\n"  1
+stmt: RETI4(addrRegCon)  "exitReturning.4 %0\n"  1
+stmt: RETU4(addrRegCon)  "exitReturning.4 %0\n"  1
+stmt: RETP4(addrRegCon)  "exitReturning.4 %0\n"  1
+stmt: RETV(addrRegCon)   "exitReturning.0 %0\n"  1
+
+stmt: ARGF4(addrRegCon)  "push.4 %0\n"  1
+stmt: ARGF8(addrRegCon)  "push.8 %0\n"  1
+stmt: ARGI4(addrRegCon)  "push.4 %0\n"  1
+stmt: ARGP4(addrRegCon)  "push.4 %0\n"  1
+stmt: ARGU4(addrRegCon)  "push.4 %0\n"  1
+ 
+
+stmt: ARGB(INDIRB(dataaddr)) "pushBytes align(.%b)\n\t\tbyteCount(%a)\n\t\tsource(%0)\n\t\texpectingZero(%c)\n"
+stmt: ARGB(INDIRB(reg))       "<ARGB>\n"      10
+
+stmt: ASGNB(reg,INDIRB(reg))  "# asgnb %0 %1\n"  1
 %%
+/*
 
-// Emitters
-static void progbeg(int argc, char *argv[]) {
-    {
-	union {
-	    char c;
-	    int i;
-	} u;
-	u.i = 0;
-	u.c = 1;
-	swap = ((int)(u.i == 1)) != IR->little_endian;
-    }
-    parseflags(argc,argv);
 
-    // Long reg symbols
-    longreg[R_L0] = mkreg("L0",R_L0,1,IREG);
-    longreg[R_L1] = mkreg("L1",R_L1,1,IREG);
-    longreg[R_L2] = mkreg("L2",R_L2,1,IREG);
-    longreg[R_L3] = mkreg("L3",R_L3,1,IREG);
-
-    // Reg symbols
-    intreg[R_A] = mkreg("a",R_A,1,IREG);
-    intreg[R_B] = mkreg("b",R_B,1,IREG);
-    intreg[R_C] = mkreg("c",R_C,1,IREG);
-
-    // Float symbols
-    fltreg[R_F0] = mkreg("F0",R_F0,1,FREG);
-    fltreg[R_F1] = mkreg("F1",R_F1,1,FREG);
-    fltreg[R_F2] = mkreg("F2",R_F2,1,FREG);
-    fltreg[R_F3] = mkreg("F3",R_F3,1,FREG);
-    fltreg[R_F4] = mkreg("F4",R_F4,1,FREG);
-    fltreg[R_F5] = mkreg("F5",R_F5,1,FREG);
-    fltreg[R_F6] = mkreg("F6",R_F6,1,FREG);
-    fltreg[R_F7] = mkreg("F7",R_F7,1,FREG);
-    fltreg[R_F8] = mkreg("F8",R_F8,1,FREG);
-    fltreg[R_F9] = mkreg("F9",R_F9,1,FREG);
-    fltreg[R_F10] = mkreg("F10",R_F10,1,FREG);
-    fltreg[R_F11] = mkreg("F11",R_F11,1,FREG);
-    fltreg[R_F12] = mkreg("F12",R_F12,1,FREG);
-    fltreg[R_F13] = mkreg("F13",R_F13,1,FREG);
-    fltreg[R_F14] = mkreg("F14",R_F14,1,FREG);
-    fltreg[R_F15] = mkreg("F15",R_F15,1,FREG);
-
-    // Set up sets
-    longwldcrd = mkwildcard(longreg);
-    intwldcrd = mkwildcard(intreg);
-    fltwldcrd = mkwildcard(fltreg);
-
-    // Set up temp regs
-    tmask[IREG] = (1<<R_L0) | (1<<R_L1) | (1<<R_L2) | (1<<R_L3) | 
-		  (1<<R_A)  | (1<<R_B);
-    // Set up register temps - none in our case
-    vmask[IREG] = 0;
-
-    // FP regs.
-    tmask[FREG] = (1<<R_F0) | (1<<R_F1) | (1<<R_F2) | (1<<R_F3) |
-                  (1<<R_F4) | (1<<R_F5) | (1<<R_F6) | (1<<R_F7) |
-                  (1<<R_F8) | (1<<R_F9) | (1<<R_F10) | (1<<R_F11);
-    // Set up float register temps
-    vmask[FREG] = 0;
-    
-    print(";	Magic-1 assembly file, generated by lcc 4.2\n");
-    print("\n");
-/* 
- * FIXME - enable this when we have a linker
-    print("	.extern	$global$\n");
 */
-    
-    current_seg = 0;
-}
+static void progend(void){}
+static void progbeg(int argc, char *argv[]) {
+        int i;
 
+        {
+                union {
+                        char c;
+                        int i;
+                } u;
+                u.i = 0;
+                u.c = 1;
+                swap = ((int)(u.i == 1)) != IR->little_endian;
+        }
+        print("; Adam Standard Assembly file, generated by LCC 4.2 \n");
+        pic = !IR->little_endian;
+        parseflags(argc, argv);
+        for (i = 0; i < argc; i++)
+                if (strncmp(argv[i], "-G", 2) == 0)
+                        gnum = atoi(argv[i] + 2);
+                else if (strcmp(argv[i], "-pic=1") == 0
+                ||       strcmp(argv[i], "-pic=0") == 0)
+                        pic = argv[i][5]-'0';
+        for (i = 0; i < 32; i++)
+                reg64[i] = mkreg("drg[%d]", 31-i, 1, REG8);
+        for (i = 0; i < 32; i++)
+                reg32[i]  = mkreg("reg[%d]", 31-i, 1, REG4);
+        d6 = mkreg("6", 6, 3, REG4);
+        reg64wildcard = mkwildcard(reg64);
+        reg32wildcard = mkwildcard(reg32);
+        tmask[REG4] = INTTMP; tmask[REG8] = FLTTMP;
+        vmask[REG4] = INTVAR; vmask[REG8] = FLTVAR;
+        blkreg = mkreg("8", 8, 7, IREG);
+}
 static Symbol rmap(int opk) {
-    switch (optype(opk)) {
-	case B:
-	case P:
-	    return intwldcrd;
-	case I:
-	case U:
-	    if (opsize(opk) <= 2) {
-	        return intwldcrd; 
-	    } else {
-		return longwldcrd;
-	    }
-	case F:
-	    return fltwldcrd;
-	default:
-	    return 0;
-    }
+        if (optype(opk) == B) {
+                return reg32wildcard;
+        }
+        switch (opsize(opk))
+        {
+                case 1: case 2: case 4:
+                        return reg32wildcard;
+                case 8:
+                        return reg64wildcard;
+                default:
+                        assert(0);
+        }
 }
-
-static void segment(int n) {
-    if (n==current_seg)
-	return;
-    if (n == CODE)
-	print("\t.cseg\n");
-    else if (n == LIT)
-#if 1 // combine lit with dseg
-	print("\t.dseg\n");
-#else
-	print("\t.lit\n");
-#endif
-    else if (n == DATA)
-	print("\t.dseg\n");
-    else if (n == BSS)
-	print("\t.bss\n");
-    else
-	print("\tERROR - unknown segment %d\n",n);
-    current_seg = n;
-}
-
-// NOTE - remove these when I have a real linker.  It will take care of
-// defining these symbols.
-static void progend(void) {
-    if (ever_used_floats) {
-	// Emit dummy ref to bring in floating point support code
-	print("\t.dseg\n");
-	printf("\t.extern\t__fp_hook\n");
-	print("\t.defw\t__fp_hook\n");
-    }
-    print("\t.end\n");
-}
-
-static int iscvt(Node p) {
-    return ((generic(p->op)==CVI) || (generic(p->op)==CVU));
-}
-
-static void target(Node p) {
-    assert(p);
-
-    if (optype(p->op) == F) {
-	if (!used_floats) {
-	    printf("; used_floats -> TRUE\n");
-            ever_used_floats = used_floats = 1;
-	}
-    } else if (opsize(p->op) > 2) {
-	if (!used_longs) {
-	   printf("; used_longs -> TRUE\n");
-           used_longs = 1;
-	}
-    }
-    
-    switch (specific(p->op)) {
-
-
-	case BCOM+I:
-	case BCOM+U:
-	case NEG+I:
-	case NEG+U:
-		/* going to set a=0, and then a-b */
-	    if (opsize(p->op)<=2) {
-		rtarget(p,0,intreg[R_B]);
-		setreg(p,intreg[R_A]);
-		if (iscvt(p->kids[0])) {
-		    rtarget(p->kids[0],0,intreg[R_A]);
-		}
-	    }
-	    break;
-
-	case ADD+I:
-	case ADD+U:
-	case SUB+I:
-	case SUB+U:
-	case SUB+P:
-	case BOR+I:
-	case BOR+U:
-	case BAND+I:
-	case BAND+U:
-	case BXOR+I:
-	case BXOR+U:
-	    if (opsize(p->op)<=2) {
-	        rtarget(p,0,intreg[R_A]);
-		if (iscvt(p->kids[0])) {
-		    rtarget(p->kids[0],0,intreg[R_A]);
-		}
-	        setreg(p,intreg[R_A]);
-	    }
-	    break;
-	case ADD+P:
-	    break;
-	case LSH+I:
-	case LSH+U:
-	case RSH+I:
-	case RSH+U:
-	// COPY32 must preserve B
-	//   ... why?  is this true?  verify.  FIXME
-	    if (opsize(p->op)<=2) {
-	        rtarget(p,0,intreg[R_A]);
-		if (iscvt(p->kids[0])) {
-		    rtarget(p->kids[0],0,intreg[R_A]);
-		}
-	        setreg(p,intreg[R_A]);
-	    }
-	    rtarget(p,1,intreg[R_B]);
-	    break;
-	
-	case MUL+I:
-	case MUL+U:
-	case DIV+I:
-	case DIV+U:
-	case MOD+I:
-	case MOD+U:
-	    if (opsize(p->op)<=2) {
-		rtarget(p,0,intreg[R_A]);
-		if (iscvt(p->kids[0])) {
-		    rtarget(p->kids[0],0,intreg[R_A]);
-		}
-		rtarget(p,1,intreg[R_B]);
-		setreg(p,intreg[R_A]);
-	    } 
-	    break;
-
-	case CALL+I:
-	case CALL+U:
-	case CALL+P:
-	    if (opsize(p->op)<=2) {
-   	        setreg(p,intreg[R_A]);
-	    }
-	    break;
-
-	case CALL+B:
-	    // Yes, this is correct (I think). We need the pointer to the return
-	    // area to show up in A.  FIXME - verify what happens if the
-	    // caller treats this function as a procedure and doesn't use the
-	    // result.  Is some space allocated anyway?
-	    rtarget(p,1,intreg[R_A]);
-	    break;
-
-	case EQ+I:
-	case EQ+U:
-	case NE+I:
-	case NE+U:
-	case LE+I:
-	case LE+U:
-	case LT+I:
-	case LT+U:
-	    if (opsize(p->op) <= 2) {
-		rtarget(p,0,intreg[R_A]);
-		if (iscvt(p->kids[0])) {
-		    rtarget(p->kids[0],0,intreg[R_A]);
-		}
-		rtarget(p,1,intreg[R_B]);
-	    } 
-	    break;
-
-	    // Swapping operands for these to normalize to LE & LT
-	case GT+I:
-	case GT+U:
-        case GE+I:
-	case GE+U:
-	    if (opsize(p->op) <= 2) {
-		rtarget(p,1,intreg[R_A]);
-		if (iscvt(p->kids[1])) {
-		    rtarget(p->kids[1],0,intreg[R_A]);
-		}
-		rtarget(p,0,intreg[R_B]);
-	    }
-	    break;
-	
-	case RET+I:
-	case RET+U:
-	case RET+P:
-	    if (opsize(p->op) <= 2) {
-		rtarget(p,0,intreg[R_A]);
-	    } else {
-	        rtarget(p,0,longreg[R_L0]);
- 	    }
-	    break;
-
-	case RET+F:
-	    rtarget(p,0,fltreg[R_F0]);
-	    if (opsize(p->op) == 8) {
-		double_ptr = 1;
-	    }
-	    break;
-
-	case CVU+U:
-	case CVU+I:
-            // No unsigned extension for B, so must leave in A for <= 2; mem is either because do not need sratch reg
-	    if ((opsize(p->op) == 2) && (opsize(p->kids[0]->op) == 1)) {
-		setreg(p,intreg[R_A]);
-		rtarget(p,0,intreg[R_A]);
-	    }
-	    break;
-
-	case CVF+I:
-	    if (opsize(p->op) == 2) {
-		// Converting float to 16-bit int/unsigned
-		setreg(p,intreg[R_A]);
-	    }
-	    break;
-	case CVI+F:
-	    if (opsize(p->kids[0]->op)==2) {
-		// Converting 16-bit int/unsigned to float
-		rtarget(p,0,intreg[R_A]);
-	    }
-	    break;
-        
-	case CVI+U:
-        case CVI+I:
-            // When doing int -> long, pass in in A to because need logical ops that only work on A
-	    if ((opsize(p->op) == 4) && (opsize(p->kids[0]->op) == 2)) {
-		rtarget(p,0,intreg[R_A]);
-	    }
-	    break;
-
-	case ARG+B:
-	    // Make sure pointer to source is in B so we can easily memcpy
-	    rtarget(p->kids[0],0,intreg[R_B]);
-	    break;
-
-	case ASGN+B:
-	    // Dst addr in A, src addr in B.
-	    rtarget(p,0,intreg[R_A]);
-	    rtarget(p->kids[1],0,intreg[R_B]);
-	    break;
-
-        case INDIR+I:
-        case INDIR+U:
-        case INDIR+F:
-	    // Src addr in B for easier memcpy
-	    if (opsize(p->op) > 2) {
-		rtarget(p,0,intreg[R_B]);
-	    }
-	    break;
-    }
-}
-
-// Only real registers can be clobbered.  If we've already done a setreg
-// for the result, make sure we don't clobber it here.
-// Shouldn't we clobber for 16-bit MUL/DIV?
-static void clobber(Node p) {
-    assert(p);
-    switch(specific(p->op)) {
-	case MUL+I:
-	case MUL+U:
-	case DIV+I:
-	case DIV+U:
-	case MOD+I:
-	case MOD+U:
-	case CALL+I:
-	case CALL+P:
-	case CALL+U:
-	// Would normally kill both, but if we're returning result
-	// in A we've already done a setreg on it so don't spill.
-	    if (opsize(p->op > 2)) { 
-		spill( (1<<R_A) | (1<<R_B) , IREG , p );
-	    } else {
-		spill( (1<<R_B) , IREG , p );
-	    }
-	    break;
-	case ASGN+B:
-	case CALL+V:
-        case ARG+B:
-	case CALL+F:
-	case CVI+F:
-	case EQ+F:
-	case NE+F:
-	case LE+F:
-	case LT+F:
-	case GT+F:
-	case GE+F:
-	// always spill both A & B
-	    spill( (1<<R_B) | (1<<R_A) ,IREG,p);
-	    break;
-	case CALL+B:
-	// I don't really understand this.  I want to show that
-	// both A and B are killed, but if I spill A here I get the
-	// spill assert as if A had been setreg'd - but I don't.
-	    spill( (1<<R_B) , IREG , p);
-	    break;
-	case CVF+I:
-	    // We've done setreg on A, kill B
-	    spill( (1<<R_B) , IREG , p);
-	    break;
-	default:
-	// spill everything for generic long operation.
-	    if (opsize(p->op) > 2) {
-		spill((1<<R_A)|(1<<R_B),IREG,p);
-	    }
-	    break;
-    }
-}
-
-
-int isfloat8(Node p) {
-        assert(p);
-	assert(p->kids[0]);
-	if (opsize(p->kids[0]->op)==8)
-	    return 3;
-	else
-	    return LBURG_MAX;
-}
-
-int isfloat4(Node p) {
-        assert(p);
-	assert(p->kids[0]);
-	if (opsize(p->kids[0]->op)==4)
-	    return 3;
-	else
-	    return LBURG_MAX;
-}
-
-
-// Looks for a a = b <op> a cases
-int flip_memop(Node p) {
-        assert(p);
-        assert(generic(p->op) == ASGN);
-        assert(p->kids[0]);
-        assert(p->kids[1]);
-	if (generic(p->kids[1]->kids[1]->op) == INDIR
-        && sametree(p->kids[0], p->kids[1]->kids[1]->kids[0])) {
-                return 3; 
-	} else
-                return LBURG_MAX;
-}
-
-// Looks for a <op>= b or a = a <op> b cases
-int memop(Node p) {
-        assert(p);
-        assert(generic(p->op) == ASGN);
-        assert(p->kids[0]);
-        assert(p->kids[1]);
-        if (generic(p->kids[1]->kids[0]->op) == INDIR
-        && sametree(p->kids[0], p->kids[1]->kids[0]->kids[0]))
-                return 3;
-        else
-                return LBURG_MAX;
-}
-int sametree(Node p, Node q) {
-        return p == NULL && q == NULL
-        || p && q && p->op == q->op && p->syms[0] == q->syms[0]
-                && sametree(p->kids[0], q->kids[0])
-                && sametree(p->kids[1], q->kids[1]);
-}
-
-int isfptr(Node n, int iftrue, int iffalse) {
-   if (!n->syms[0]->generated && isfunc(n->syms[0]->type))
-       return iftrue;
-   else
-       return iffalse;
-}
-
+static void target(Node p) {}
+static void clobber(Node p) {}
 static void emit2(Node p) {
-    int op = specific(p->op); 
+        int dst, n, src, sz, ty;
+        static int ty0;
+        Symbol q;
 
-    switch( op ) {
-       case RET+I:
-       case RET+U:
-       case RET+F:
-           if (opsize(p->op) == 4) {
-              print("\tld.16\ta,2+%s\n",p->kids[0]->syms[2]->x.name);
-              print("\tld.16\tb,%s\n",p->kids[0]->syms[2]->x.name);
-           } else if (opsize(p->op)==8) {
-	      print("\tld.16\ta,%d+%d(sp)\n",double_ptr,framesize);
-	      print("\tCOPY64(0(a),%s)\n",fltreg[R_F0]->x.name);
-	   }
-           break;
-       case ARG+F: 
-       case ARG+P: 
-       case ARG+I: 
-       case ARG+U: 
-	   if (opsize(p->op) <= 2) {
-	       print("\tst.16\t%d(sp),%s\n",p->syms[2]->u.c.v.i,p->kids[0]->syms[2]->x.name); 
-	   } else if (opsize(p->op) == 4) {
-	       print("\tCOPY32(%d(sp),%s)\n",p->syms[2]->u.c.v.i,p->kids[0]->syms[2]->x.name); 
-	   } else {
-	       print("\tCOPY64(%d(sp),%s)\n",p->syms[2]->u.c.v.i,p->kids[0]->syms[2]->x.name); 
-	   }
-           break;
-	
+        switch (specific(p->op)) {
+        case ASGN+B:
+                dalign = salign = p->syms[1]->u.c.v.i;
+                blkcopy(getregnum(p->x.kids[0]), 0,
+                        getregnum(p->x.kids[1]), 0,
+                        p->syms[0]->u.c.v.i, tmpregs);
+                break;
         case ARG+B:
-	       print("\tld.16\tc,%d\n\tlea\ta,%d(sp)\n\tmemcopy\n",p->syms[0]->u.c.v.i,p->syms[2]->u.c.v.i);
-	   break;
-
-    }
+                dalign = 4;
+                salign = p->syms[1]->u.c.v.i;
+                blkcopy(29, p->syms[2]->u.c.v.i,
+                        getregnum(p->x.kids[0]), 0,
+                        p->syms[0]->u.c.v.i, tmpregs);
+                n   = p->syms[2]->u.c.v.i + p->syms[0]->u.c.v.i;
+                dst = p->syms[2]->u.c.v.i;
+                for ( ; dst <= 12 && dst < n; dst += 4)
+                        print("lw $%d,%d($sp)\n", (dst/4)+4, dst);
+                break;
+/*        default:
+           print("...unknown emit2 request<%s>\n", opname(p->op)); */
+        }
 }
-
 static void doarg(Node p) {
-    static int argno;
-    if (argoffset==0) {
-	argoffset = 2;
-	argno = 0;
-    }
-    p->x.argno=argno++;
-    p->syms[2] = intconst(mkactual(2,p->syms[0]->u.c.v.i));
+        static int argno;
+        int align;
+
+        if (argoffset == 0)
+                argno = 0;
+        p->x.argno = argno++;
+        align = p->syms[1]->u.c.v.i < 4 ? 4 : p->syms[1]->u.c.v.i;
+        p->syms[2] = intconst(mkactual(align,
+                p->syms[0]->u.c.v.i));
 }
-
-// Block operators not needed
-static void blkfetch(int k, int off, int reg, int tmp) {}
-static void blkstore(int k, int off, int reg, int tmp) {}
-static void blkloop(int dreg, int doff, int sreg, int soff,int size, int tmps[]) {}
-
 static void local(Symbol p) {
-#if 0 
-    // FIXME - why am I doing this?   The x86 had to differentiate, but
-    // I don't.
-    if (isfloat(p->type)) {
-	p->sclass = AUTO;
-    }
-#endif
-    if (askregvar(p,(*IR->x.rmap)(ttob(p->type)))==0) {
-	mkauto(p);
-    }
+        if (askregvar(p, rmap(ttob(p->type))) == 0)
+                mkauto(p);
 }
 
+#define SIZEOFADAMADDRESS 3
+static void function(Symbol f, Symbol caller[], Symbol callee[], int ncalls) {
+        int i, reg4Count, reg8Count;
 
-// FIXME - I appears as if I'm allocating an additional 2 bytes for
-// the outgoing argument build area.  Not a big problem, but why?
-// I may be confused by doarg().  I intend that starting point of
-// 2 to be to skip over the frame pointer.  Perhaps I should redo my
-// address math.
-static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
-    int i;
-
-    used_longs = used_floats = 0;
-
-    double_ptr = 0;
-
-    print("%s:\n",f->x.name);
-    usedmask[0] = usedmask[1] = 0;
-    freemask[0] = freemask[1] = ~(unsigned)0;
-
-    offset = 0;
-    for (i=0; callee[i]; i++) {
-	Symbol p = callee[i];
-	Symbol q = caller[i];
-	assert(q);
-	p->x.offset = q->x.offset = offset; /* + A_T0_STORE_SIZE; */
-	p->x.name = q->x.name = stringf("%d",p->x.offset);
-	p->sclass = q->sclass = AUTO;
-	offset += roundup(q->type->size,2);
-    }
-    assert(caller[i] == 0);
-    maxoffset = offset = 0;
-    maxargoffset = 0;
-
-    // Generate code
-    gencode(caller,callee);
-
-    // Allocate space for any pseudo regs we used
-    if (used_longs) {
-        for (i=R_L0;i<=R_L3;i++) {
-	    if (usedmask[0] & (1<<i)) {
-	        maxoffset+=4;
-	        longreg[i]->x.offset = -maxoffset;
-	    }
+        print("%s:\n", f->x.name);
+        usedmask[0] = usedmask[1] = 0;
+        freemask[0] = freemask[1] = ~(unsigned)0;
+        // save space for the return execution address
+        // and the return value address
+        offset = roundup(SIZEOFADAMADDRESS*2, 4);
+        for (i = 0; callee[i]; i++) {
+                Symbol p = callee[i];
+                Symbol q = caller[i];
+                assert(q);
+                p->x.offset = q->x.offset = offset;
+                /*p->x.name = q->x.name = stringf("%d<id %d>", p->x.offset, i);*/
+                p->x.name = q->x.name = stringf("%d", p->x.offset);
+                p->sclass = q->sclass = AUTO;
+                offset += roundup(q->type->size, 4);
         }
-    }
-    if (used_floats) {
-        for (i=R_F0;i<=R_F15;i++) {
-	    if (usedmask[1] & (1<<i)) {
-	        maxoffset+=8;
-	        fltreg[i]->x.offset = -maxoffset;
-	    }
-        }
-    }
-
-    if (double_ptr) {
-	maxoffset += 2;
-	double_ptr = -maxoffset;
-    }
-
-    // Now, set the frame size
-
-
-    framesize = maxoffset + maxargoffset;
-    if (framesize > 0) {
-	// Allow for FP created by ENTER instruction
-	framesize += 2;
-    }
-
-    // Rewrite names of used long and float regs now that we know framesize
-    if (used_longs) {
-        for (i=R_L0;i<=R_L3;i++) {
-	    if (usedmask[0] & (1<<i)) {
-	        longreg[i]->x.name = stringf("%d(sp)",longreg[i]->x.offset+framesize);
-		printf("; equating L%d to %d(sp)\n",i,longreg[i]->x.offset+framesize);
-	    }
-        }
-    }
-    if (used_floats) {
-        for (i=R_F0;i<=R_F15;i++) {
-	    if (usedmask[1] & (1<<i)) {
-	        fltreg[i]->x.name = stringf("%d(sp)",fltreg[i]->x.offset+framesize);
-		printf("; equating F%d to %d(sp)\n",i,fltreg[i]->x.offset+framesize);
-	    }
-        }
-    }
-
-
-    // Gen entry code
-    if (framesize > 0) {
-        print("\tenter\t%d\n",framesize-2);
-    }
-    if (isstruct(freturn(f->type))) {
-	print("\tst.16\t-2+%d(sp),a\n",framesize);
-    }
-    if (double_ptr) {
-	print("\tst.16\t%d+%d(sp),a\n",double_ptr,framesize);
-    }
-    emitcode();
-    if (framesize > 0) {
-        print("\tleave\n"); 
-    }
-    printf("\tret\n");
-    printf("\n");
+        assert(caller[i] == 0);
+        offset = maxoffset = 0;
+        gencode(caller, callee);
+        framesize = roundup(maxoffset, 4);
+        reg4Count = bitcount(usedmask[REG4]);
+        reg8Count = bitcount(usedmask[REG8]);
+        printf("enter regCount=%d, drgCount=%d, localBytes=%d\n", reg4Count, reg8Count,  framesize);
+        emitcode();
+        print("unreachable\n");
+        print("\n");
 }
+static void defconst(int suffix, int size, Value v) {
+        if (suffix == F && size == 4) {
+                float f = v.d;
+                print(".word 0x%x\n", *(unsigned *)&f);
+        }
+        else if (suffix == F && size == 8) {
+                double d = v.d;
+                unsigned *p = (unsigned *)&d;
+                print(".word 0x%x\n.word 0x%x\n", p[swap], p[!swap]);
+        }
+        else if (suffix == P)
+                print(".word 0x%x\n", (unsigned)v.p);
+        else if (size == 1)
+                print(".byte 0x%x\n", (unsigned)((unsigned char)(suffix == I ? v.i : v.u)));
+        else if (size == 2)
+                print(".half 0x%x\n", (unsigned)((unsigned short)(suffix == I ? v.i : v.u)));
+        else if (size == 4)
+                print(".word 0x%x\n", (unsigned)(suffix == I ? v.i : v.u));
+}
+static void defaddress(Symbol p) {
+        if (pic && p->scope == LABELS)
+                print(".gpword %s\n", p->x.name);
+        else
+                print(".word %s\n", p->x.name);
+}
+static void defstring(int n, char *str) {
+        char *s;
 
+        for (s = str; s < str + n; s++)
+                print(".byte %d\n", (*s)&0377);
+}
+static void export(Symbol p) {
+        print(".globl %s\n", p->x.name);
+}
+static void import(Symbol p) {
+        if (!isfunc(p->type))
+                print(".extern %s %d\n", p->name, p->type->size);
+}
 static void defsymbol(Symbol p) {
-    if (p->scope >= LOCAL && p->sclass == STATIC)
-	p->x.name = stringf("L%d", genlabel(1));
-    else if (p->generated)
-	p->x.name = stringf("L%s", p->name);
-    else if (p->scope == GLOBAL || p->sclass == EXTERN)
-	p->x.name = stringf("_%s",p->name);
-    else if (p->scope == CONSTANTS
-	    && (isint(p->type) || isptr(p->type))
-	    && p->name[0] == '0' && p->name[1] == 'x')
-	p->x.name = stringf("0%sH", &p->name[2]);
-    else
-	p->x.name = p->name;
+        if (p->scope >= LOCAL && p->sclass == STATIC)
+                p->x.name = stringf("L.%d", genlabel(1));
+        else if (p->generated)
+                p->x.name = stringf("L.%s", p->name);
+        else if(p->scope == CONSTANTS && isint(p->type))
+        {
+                p->x.name = stringf("%d", p->u.c.v.i);
+        } 
+        else
+                assert(p->scope != CONSTANTS || isptr(p->type) || isfloat(p->type)),
+                        p->x.name = p->name;
 }
-
 static void address(Symbol q, Symbol p, long n) {
         if (p->scope == GLOBAL
         || p->sclass == STATIC || p->sclass == EXTERN)
-                q->x.name = stringf("%s%s%D",
-                        p->x.name, n >= 0 ? "+" : "", n);
+                q->x.name = stringf("%s%s%D", p->x.name,
+                        n >= 0 ? "+" : "", n);
         else {
                 assert(n <= INT_MAX && n >= INT_MIN);
                 q->x.offset = p->x.offset + n;
                 q->x.name = stringd(q->x.offset);
         }
 }
-
-static void defconst(int suffix, int size, Value v) {
-        if (suffix == I && size == 1)
-                print("	.defb 0x%x\n",   v.u & 0xff);
-        else if (suffix == I && size == 2)
-                print("	.defw 0x%x\n",   v.i & 0xffff);
-        else if (suffix == U && size == 1)
-                print("	.defb 0x%x\n", v.u & 0xff);
-        else if (suffix == U && size == 2)
-                print("	.defw 0x%x\n",   v.i & 0xffff);
-        else if (suffix == P && size == 2)
-                print("	.defw 0x%x\n", v.u & 0xffff);
-        else if (suffix == F && size == 4) {
-                float f = (float)v.d;
-		unsigned short *p = (unsigned short*)&f;
-                print("	.defw 0x%x\n", p[1]);
-                print("	.defw 0x%x\n", p[0]);
-	} else if (suffix == F && size == 8) {
-	        double d = (double)v.d;
-		unsigned short *f = (unsigned short*)&d;
-                print("	.defw 0x%x\n", f[3]);
-                print("	.defw 0x%x\n", f[2]);
-                print("	.defw 0x%x\n", f[1]);
-                print("	.defw 0x%x\n", f[0]);
-        } else if (suffix == I && size == 4) {
-                print("	.defw 0x%x\n",   (v.i>>16) & 0xffff);
-                print("	.defw 0x%x\n",   v.i & 0xffff);
-        } else if (suffix == U && size == 4) {
-                print("	.defw 0x%x\n",   (v.u>>16) & 0xffff);
-                print("	.defw 0x%x\n",   v.u & 0xffff);
-	}
-        else assert(0);
-}
-
-static void defaddress(Symbol p) {
-        print("	.defw %s\n", p->x.name);
-}
-
-static void defstring(int n, char *str) {
-        char *s;
-        for (s = str; s < str + n; s++)
-                print("	.defb %d\n", (*s)&0377);
-}
-
-static void export(Symbol p) {
-    print("\t.global %s\n", p->x.name);
-}
-
-static void import(Symbol p) {
-    print("\t.extern %s\n", p->x.name);
-}
-
 static void global(Symbol p) {
-        assert(p->type->align == 1);
-        print("%s:\n", p->x.name);
-        if (p->u.seg == BSS)
-                print("	.defs %d\n", p->type->size);
+        if (p->u.seg == BSS) {
+                if (p->sclass == STATIC || Aflag >= 2)
+                        print(".lcomm %s,%d\n", p->x.name, p->type->size);
+                else
+                        print( ".comm %s,%d\n", p->x.name, p->type->size);
+        } else {
+                if (p->u.seg == DATA
+                && (p->type->size == 0 || p->type->size > gnum))
+                        print(".data\n");
+                else if (p->u.seg == DATA)
+                        print(".sdata\n");
+                print(".align %c\n", ".01.2...3"[p->type->align]);
+                print("%s:\n", p->x.name);
+        }
 }
-
+static void segment(int n) {
+        cseg = n;
+        switch (n) {
+        case CODE: print(".text\n");  break;
+        case LIT:  print(".rdata\n"); break;
+        }
+}
 static void space(int n) {
-        if (current_seg != BSS)
-                print("	.defs %d\n", n);
+        if (cseg != BSS)
+                print(".space %d\n", n);
 }
 
+static void blkloop(int dreg, int doff, int sreg, int soff, int size, int tmps[]) {
+        int lab = genlabel(1);
 
+        print("addu $%d,$%d,%d\n", sreg, sreg, size&~7);
+        print("addu $%d,$%d,%d\n", tmps[2], dreg, size&~7);
+        blkcopy(tmps[2], doff, sreg, soff, size&7, tmps);
+        print("L.%d:\n", lab);
+        print("addu $%d,$%d,%d\n", sreg, sreg, -8);
+        print("addu $%d,$%d,%d\n", tmps[2], tmps[2], -8);
+        blkcopy(tmps[2], doff, sreg, soff, 8, tmps);
+        print("bltu $%d,$%d,L.%d\n", dreg, tmps[2], lab);
+}
+static void blkfetch(int size, int off, int reg, int tmp) {
+        assert(size == 1 || size == 2 || size == 4);
+        if (size == 1)
+                print("lbu $%d,%d($%d)\n",  tmp, off, reg);
+        else if (salign >= size && size == 2)
+                print("lhu $%d,%d($%d)\n",  tmp, off, reg);
+        else if (salign >= size)
+                print("lw $%d,%d($%d)\n",   tmp, off, reg);
+        else if (size == 2)
+                print("ulhu $%d,%d($%d)\n", tmp, off, reg);
+        else
+                print("ulw $%d,%d($%d)\n",  tmp, off, reg);
+}
+static void blkstore(int size, int off, int reg, int tmp) {
+        if (size == 1)
+                print("sb $%d,%d($%d)\n",  tmp, off, reg);
+        else if (dalign >= size && size == 2)
+                print("sh $%d,%d($%d)\n",  tmp, off, reg);
+        else if (dalign >= size)
+                print("sw $%d,%d($%d)\n",  tmp, off, reg);
+        else if (size == 2)
+                print("ush $%d,%d($%d)\n", tmp, off, reg);
+        else
+                print("usw $%d,%d($%d)\n", tmp, off, reg);
+}
+static void stabinit(char *, int, char *[]);
+static void stabline(Coordinate *);
+static void stabsym(Symbol);
+
+static char *currentfile;
+
+static int bitcount(unsigned mask) {
+        unsigned i, n = 0;
+
+        for (i = 1; i; i <<= 1)
+                if (mask&i)
+                        n++;
+        return n;
+}
+
+/* stabinit - initialize stab output */
+static void stabinit(char *file, int argc, char *argv[]) {
+        if (file) {
+                print(".file 2,\"%s\"\n", file);
+                currentfile = file;
+        }
+}
+
+/* stabline - emit stab entry for source coordinate *cp */
+static void stabline(Coordinate *cp) {
+        if (cp->file && cp->file != currentfile) {
+                print(".file 2,\"%s\"\n", cp->file);
+                currentfile = cp->file;
+        }
+        print(".loc 2,%d\n", cp->y);
+}
+
+/* stabsym - output a stab entry for symbol p */
+static void stabsym(Symbol p) {
+        if (p == cfunc && IR->stabline)
+                (*IR->stabline)(&p->src);
+}
 Interface adamStdIR = {
         1, 1, 0,  /* char */
-        2, 1, 0,  /* short */
-        2, 1, 0,  /* int */
-        4, 1, 1,  /* long */
-        4, 1, 1,  /* long long */
-        4, 1, 1,  /* float */
-        8, 1, 1,  /* double */
-        8, 1, 1,  /* long double */
-        2, 1, 0,  /* T * */
+        2, 2, 0,  /* short */
+        4, 4, 0,  /* int */
+        4, 4, 0,  /* long */
+        4, 4, 0,  /* long long */
+        4, 4, 0,  /* float */
+        8, 8, 0,  /* double */
+        8, 8, 1,  /* long double */
+        4, 4, 0,  /* T * */
         0, 1, 0,  /* struct */
-        0,        /* little_endian */
-        0,        /* mulops_calls */
-        1,        /* wants_callb */
-        1,        /* wants_argb */
-        1,        /* left_to_right */
-        0,        /* wants_dag */
-        0,        /* unsigned_char */
-		// 8,	  /* byte width */ // LCC extension added by Bill for D16/M as detailed in http://www.homebrewcpu.com/projects.htm
+        1,      /* big_endian */
+        0,  /* mulops_calls */
+        0,  /* wants_callb */
+        1,  /* wants_argb */
+        0,  /* left_to_right */
+        0,  /* wants_dag */
+        0,  /* unsigned_char */
         address,
         blockbeg,
         blockend,
@@ -1743,20 +923,23 @@ Interface adamStdIR = {
         progend,
         segment,
         space,
-        0, 0, 0, 0, 0, 0, 0,
-        {1, rmap,
-            blkfetch, blkstore, blkloop,
-            _label,
-            _rule,
-            _nts,
-            _kids,
-            _string,
-            _templates,
-            _isinstruction,
-            _ntname,
-            emit2,
-            doarg,
-            target,
-            clobber,
-}
+        0, 0, 0, stabinit, stabline, stabsym, 0,
+        {
+                4,      /* max_unaligned_load */
+                rmap,
+                blkfetch, blkstore, blkloop,
+                _label,
+                _rule,
+                _nts,
+                _kids,
+                _string,
+                _templates,
+                _isinstruction,
+                _ntname,
+                emit2,
+                doarg,
+                target,
+                clobber,
+
+        }
 };

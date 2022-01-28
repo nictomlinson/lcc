@@ -169,8 +169,7 @@ $Bhideset$O:	cpp/hideset.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/hideset.c
 $Bgetopt$O:	cpp/getopt.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/getopt.c
 $Bunix$O:	cpp/unix.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/unix.c
 
-TRIVIAL: $Bsample/adam/std/trivial.s \
-		$Bsample/x86/linux/trivial.s \
+TRIVIAL: $Bsample/x86/linux/trivial.s \
 		$Bsample/m1/magic1/trivial.s \
 		$Bsample/alpha/osf/trivial.s \
 		$Bsample/mips/irix/trivial.s \
@@ -180,8 +179,9 @@ TRIVIAL: $Bsample/adam/std/trivial.s \
 		$Bsample/symbolic/osf/trivial.s \
 		$Bsample/symbolic/irix/trivial.s \
 		$Bsample/symbolic/trivial.html \
-		$Bsample/bytecode/trivial.s
-
+		$Bsample/bytecode/trivial.s \
+		$Bsample/adam/std/trivial.s 
+		
 $Bsample/adam/std/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/adam/std tst/trivial.c
 	lcc -Wf-target=adam/std -S  -o $Bsample/adam/std/trivial.s tst/trivial.c
 
