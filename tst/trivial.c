@@ -4,6 +4,7 @@ typedef struct {
     int a;
     char d;
 } myStruct;
+
 /*
 extern int extFunc(myStruct strt);
 
@@ -19,7 +20,8 @@ static void func()
 
 static unsigned int addSeven(char a, int s, short i, float f, myStruct strc, int *iptr);
 extern int extInt;
-
+extern myStruct extGetStruct(int a, int b);
+extern myStruct extStruct;
 
 static int
 aFunction(float f1, float f2, unsigned int t)
@@ -30,10 +32,12 @@ aFunction(float f1, float f2, unsigned int t)
     double dbl;
     int x;
     unsigned int (*ptrToAddSeven)(char a, int s, short i, float f, myStruct strc, int *iptr);
+    strct = extGetStruct(1, 2);
     f3 = 54.3;
     strct.c = 53;
+    extStruct = strct;
     strctPtr = &strct;
-    strctPtr->b = 5;
+    strctPtr->b = 17;
     dbl = 37.0;
     f3 += f1 + f2;
     x = addSeven(11, 12, 13, f3, strct, &(strct.a));
@@ -49,5 +53,7 @@ aFunction(float f1, float f2, unsigned int t)
 
 static unsigned int addSeven(char a, int s, short i, float f, myStruct strc, int *iptr)
 {
-    return a;
+    char x;
+    x = 3 + a + i;
+    return x;
 }
