@@ -1,9 +1,17 @@
-typedef struct {
+extern unsigned char c1;
+extern unsigned short c2;
+extern char getChar();
+extern short getShort();
+extern int i1;
+/*int adder() { return ((char)(c1 + c2)) + i1; }*/
+int adder() { return getChar()+ getShort() ; }
+
+/*
     short c;
     short b;
     int a;
     char d;
-} myStruct;
+*/
 
 /*
 extern int extFunc(myStruct strt);
@@ -17,43 +25,75 @@ static void func()
     extFunc(*strtPtr);
 }
 */
+/*
+typedef struct {
+  char c;
+  char b;
+  char a;
+  char d;
+} myStruct;
 
-static unsigned int addSeven(char a, int s, short i, float f, myStruct strc, int *iptr);
+typedef void FType(char a, char b);
+extern FType *myFType;
+extern void ftype(char a, char b);
+typedef struct Person Person;
+extern Person person;
+extern void doPerson(FType *ftype, Person *person);
+
+unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
+                             char *iptr);
 extern int extInt;
 extern myStruct extGetStruct(int a, int b);
 extern myStruct extStruct;
+char getNextChar(int i);
+static int myStaticInt = 17;
+static int bssInt1;
+static char bssChar1;
+extern short getShort();
+extern void useShort(short s);
+extern char *cPtr;
 
-static int
-aFunction(float f1, float f2, unsigned int t)
-{
-    myStruct strct;
-    myStruct *strctPtr;
-    float f3;
-    double dbl;
-    int x;
-    unsigned int (*ptrToAddSeven)(char a, int s, short i, float f, myStruct strc, int *iptr);
-    strct = extGetStruct(1, 2);
-    f3 = 54.3;
-    strct.c = 53;
-    extStruct = strct;
-    strctPtr = &strct;
-    strctPtr->b = 17;
-    dbl = 37.0;
-    f3 += f1 + f2;
-    x = addSeven(11, 12, 13, f3, strct, &(strct.a));
+static struct {
+  char a;
+  int b;
+} someStruct = {'a', 15};
+static const char a_char_literal[] = "hello world";
 
-    ptrToAddSeven = addSeven;
-    x = (*ptrToAddSeven)(11, 12, 13, f3, *strctPtr, (void *)0);
-    x += extInt;
-    if(t == -87)
-        return extInt;
-    else
-        return x;
-}
-
-static unsigned int addSeven(char a, int s, short i, float f, myStruct strc, int *iptr)
-{
-    char x;
-    x = 3 + a + i;
+static int aFunction(float f1, float f2, unsigned int t) {
+  myStruct strct = {5, 4, 3, 'f'};
+  myStruct *strctPtr;
+  float f3;
+  double dbl;
+  int x;
+  unsigned int (*ptrToAddSeven)(char a, int s, short i, float f, myStruct strc,
+                                char *iptr);
+  signed char c;
+  useShort(*cPtr);
+  doPerson(&ftype, &person);
+  myFType('a', 'b');
+  c = getNextChar(getShort());
+  strct = extGetStruct(1, 2);
+  f3 = 54.3;
+  strct.c = c;
+  extStruct = strct;
+  strctPtr = &strct;
+  strctPtr->b = myStaticInt;
+  dbl = 37.0;
+  f3 += f1 + f2;
+  x = addSeven(11, 12, 13, f3, strct, &(strct.a));
+  ptrToAddSeven = addSeven;
+  x = (*ptrToAddSeven)(11, 12, 13, f3, *strctPtr, (void *)0);
+  x += extInt;
+  if (t == 87)
+    return extInt;
+  else
     return x;
 }
+
+unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
+                             char *iptr) {
+  char x;
+  x = 3 + a + i;
+  return x;
+}
+*/

@@ -19,6 +19,7 @@
         (d)->x.regnode->mask&src->x.regnode->mask)
 
 #define relink(a, b) ((b)->x.prev = (a), (a)->x.next = (b))
+#define hasargs(p) (p->syms[0] && p->syms[0]->u.c.v.i > 0 ? 0 : LBURG_MAX)
 
 #include "c.h"
 #define NODEPTR_TYPE Node
@@ -211,13 +212,6 @@ dataaddr: baseaddr "%0"
 dataaddr: reg "%0"
 dataaddr: ADDP4(dataaddr, con) "%0[%1]"
 
-
-
-addrRegCon: reg "%0"
-addrRegCon: con "%0"
-addrRegCon: addr "%0"
-
-
 rc:  con            "%0"
 rc:  reg            "%0"
 
@@ -225,9 +219,6 @@ rc5: CNSTI4         "%a"                range(a,0,31)
 rc5: reg            "%0"
 
 
-ar:   ADDRGP4     "%a"
-ar:   reg         "%0"
-ar:   CNSTP4      "CNSTP4:%a"   range(a, 0, 0x0fffffff)
 
 
 stmt: reg  ""
@@ -243,18 +234,17 @@ reg: CNSTU4  "const.4 %c = %a\n"   1
 reg: CNSTP4  "const.4 %c = %a\n"   1
 reg: CNSTF4  "const.f4 %c = %a\n"  1
 
+reg: ADDRGP4                  "%c = %a ; load address of function\n" 1
+reg: dataaddr                 "%c = & %0\n"      1
 
-reg: dataaddr                 "loadAddrOf %c = %0\n"      1
-reg: dataaddr "addrOf(%0)"
-
-reg: LOADI1(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
-reg: LOADU1(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
-reg: LOADI2(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
-reg: LOADU2(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
-reg: LOADI4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
-reg: LOADP4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
-reg: LOADU4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
-reg: LOADF4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY)
+reg: LOADI1(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
+reg: LOADU1(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
+reg: LOADI2(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
+reg: LOADU2(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
+reg: LOADI4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
+reg: LOADP4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
+reg: LOADU4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
+reg: LOADF4(reg)        "copy %c = %0\n"  (move(a)-1+COST_OF_REG_COPY+100)
 
 stmt: ASGNI1(dataaddr,rc)  "stor.1 %0 = %1\n"  1
 stmt: ASGNU1(dataaddr,rc)  "stor.1 %0 = %1\n"  1
@@ -274,40 +264,81 @@ stmt: ASGNU4(reg,reg)  "stor.4 *%0 = %1\n"  1
 stmt: ASGNP4(reg,reg)  "stor.4 *%0 = %1\n"  1
 stmt: ASGNF4(reg,reg)  "stor.4 *%0 = %1\n"  1
 
-reg:  INDIRI4(dataaddr)     "load.i4 %c = %0\n"  10
-reg:  INDIRU4(dataaddr)     "load.u4 %c = %0\n"  1
-reg:  INDIRP4(dataaddr)     "load.p4 %c = %0\n"  1
+
+reg: CVFF4(reg)  "convert F%a -> F4 %0\n" 1
+reg: CVFI4(reg)  "convert F%a -> I4 %0\n" 1
+reg: CVIF4(reg)  "convert I%a -> F4 %0\n" 1
+
+
+reg: CVII1(reg) "%c = %0(.i%a->.i1)\n" 1000
+reg: CVII2(reg) "%c = %0(.i%a->.i2)\n" 1000
+reg: CVII4(reg) "%c = %0(.i%a->.i4)\n" 1000
+reg: CVIU1(reg) "%c = %0(.i%a->.u1)\n" 1000
+reg: CVIU2(reg) "%c = %0(.i%a->.u2)\n" 1000
+reg: CVIU4(reg) "%c = %0(.i%a->.u4)\n" 1000
+reg: CVPU4(reg) "%c = %0(.p%a->.u4)\n" 1000
+reg: CVUI1(reg) "%c = %0(.u%a->.i1)\n" 1000
+reg: CVUI2(reg) "%c = %0(.u%a->.i2)\n" 1000
+reg: CVUI4(reg) "%c = %0(.u%a->.i4)\n" 1000
+reg: CVUP4(reg) "%c = %0(.u%a->.p4)\n" 1000
+reg: CVUU1(reg) "%c = %0(.u%a->.u1)\n" 1000
+reg: CVUU2(reg) "%c = %0(.u%a->.u2)\n" 1000
+reg: CVUU4(reg) "%c = %0(.u%a->.u4)\n" 1000
+
+
+cvreg: CVII1(reg) "%0(.i%a->.i1)" 0
+cvreg: CVII2(reg) "%0(.i%a->.i2)" 0
+cvreg: CVII4(reg) "%0(.i%a->.i4)" 0
+cvreg: CVIU1(reg) "%0(.i%a->.u1)" 0
+cvreg: CVIU2(reg) "%0(.i%a->.u2)" 0
+cvreg: CVIU4(reg) "%0(.i%a->.u4)" 0
+cvreg: CVPU4(reg) "%0(.p%a->.u4)" 0
+cvreg: CVUI1(reg) "%0(.u%a->.i1)" 0
+cvreg: CVUI2(reg) "%0(.u%a->.i2)" 0
+cvreg: CVUI4(reg) "%0(.u%a->.i4)" 0
+cvreg: CVUP4(reg) "%0(.u%a->.p4)" 0
+cvreg: CVUU1(reg) "%0(.u%a->.u1)" 0
+cvreg: CVUU2(reg) "%0(.u%a->.u2)" 0
+cvreg: CVUU4(reg) "%0(.u%a->.u4)" 0
+
+
+
+reg:  INDIRF4(reg)     "load.f4 %c =* %0\n"  10
 reg:  INDIRF4(dataaddr)     "load.f4 %c = %0\n"  10
 
-reg:  INDIRI1(dataaddr)     "load.i1 %c = %0\n"  1
-reg:  INDIRU1(dataaddr)     "load.u2 %c = %0\n"  1
-reg:  INDIRI2(dataaddr)     "load.i2 %c = %0\n"  1
-reg:  INDIRU2(dataaddr)     "load.u2 %c = %0\n"  1
-
-reg:  INDIRI1(reg)     "load.i1 %c =* %0\n"  1
-reg:  INDIRU1(reg)     "load.u2 %c =* %0\n"  1
-reg:  INDIRI2(reg)     "load.i2 %c =* %0\n"  1
-reg:  INDIRU2(reg)     "load.u2 %c =* %0\n"  1
-
-reg:  INDIRI4(reg)     "load.i4 %c =* %0\n"  10
-reg:  INDIRU4(reg)     "load.u4 %c =* %0\n"  1
-reg:  INDIRP4(reg)     "load.p4 %c =* %0\n"  1
-reg:  INDIRF4(reg)     "load.f4 %c =* %0\n"  10
 
 
-reg:  CVII4(INDIRI1(dataaddr))     "load.i1 %c = %0\n"  
-reg:  CVUI4(INDIRU1(dataaddr))     "load.u1 %c = %0\n"  
-reg:  CVII4(INDIRI2(dataaddr))     "load.i2 %c = %0\n" 5
-reg:  CVUU4(INDIRU2(dataaddr))     "load.u2 %c = %0\n"  
+ind: INDIRI1(addr) "%0.i1" 0
+ind: INDIRI2(addr) "%0.i2" 0
+ind: INDIRI4(addr) "%0.i4" 0
+ind: INDIRU1(addr) "%0.u1" 0
+ind: INDIRU2(addr) "%0.u2" 0
+ind: INDIRU4(addr) "%0.u4" 0
+ind: INDIRP4(addr) "%0.p4" 0
 
-reg: CVII4(reg)  "<X> sll $%c,$%0,8*(4-%a); sra $%c,$%c,8*(4-%a)\n" 10
-reg: CVUI4(reg)  "<X> and $%c,$%0,(1<<(8*%a))-1\n"  
-reg: CVUU4(reg)  "<X> and $%c,$%0,(1<<(8*%a))-1\n"  
-reg: CVFF4(reg)  "<X> cvt.s.d $f%c,$f%0\n"  
-reg: CVIF4(reg)  "<X> mtc1 $%0,$f%c; cvt.s.w $f%c,$f%c\n"  
-reg: CVFI4(reg)  "<X> trunc.w.s $f2,$f%0,$%c; mfc1 $%c,$f2\n"  (a->syms[0]->u.c.v.i==4?2:LBURG_MAX)
-reg: CVFI4(reg)  "<X> trunc.w.d $f2,$f%0,$%c; mfc1 $%c,$f2\n"  (a->syms[0]->u.c.v.i==8?2:LBURG_MAX)
+ind: INDIRI1(reg) "*%0.i1" 0
+ind: INDIRI2(reg) "*%0.i2" 0
+ind: INDIRI4(reg) "*%0.i4" 0
+ind: INDIRU1(reg) "*%0.u1" 0
+ind: INDIRU2(reg) "*%0.u2" 0
+ind: INDIRU4(reg) "*%0.u4" 0
+ind: INDIRP4(reg) "*%0.p4" 0
 
+reg:  ind       "%c = %0\n" 1
+reg: CVII1(ind) "%c = (%0.i%a)->i1\n" 1
+reg: CVII2(ind) "%c = (%0.i%a)->i2\n" 1
+reg: CVII4(ind) "%c = (%0.i%a)->i4\n" 1
+reg: CVIU1(ind) "%c = (%0.i%a)->u1\n" 1
+reg: CVIU2(ind) "%c = (%0.i%a)->u2\n" 1
+reg: CVIU4(ind) "%c = (%0.i%a)->u4\n" 1
+reg: CVPU4(ind) "%c = (%0.p%a)->u4\n" 1
+reg: CVUI1(ind) "%c = (%0.u%a)->i1\n" 1
+reg: CVUI2(ind) "%c = (%0.u%a)->i2\n" 1
+reg: CVUI4(ind) "%c = (%0.u%a)->i4\n" 1
+reg: CVUP4(ind) "%c = (%0.u%a)->p4\n" 1
+reg: CVUU1(ind) "%c = (%0.u%a)->u1\n" 1
+reg: CVUU2(ind) "%c = (%0.u%a)->u2\n" 1
+reg: CVUU4(ind) "%c = (%0.u%a)->u4\n" 1
 
 
 
@@ -373,14 +404,28 @@ stmt: GTF4(reg,reg)  "BRANCH_IF_GT_F4(%a, %0, %1)\n"  2
 stmt: NEF4(reg,reg)  "BRANCH_IF_NE_F4(%a, %0, %1)\n"  2
 
 
-reg:  CALLF4(ar)  "f4.call  %c = %0()\nbn.pop  %a\n"  1
-reg:  CALLI4(ar)  "i4.call  %c = %0()\nbn.pop  %a<why 4 too big but ok if left_to_right>\n"  1
-reg:  CALLP4(ar)  "p4.call  %c = %0()\nbn.pop  %a\n"  1
-reg:  CALLU4(ar)  "u4.call  %c = %0()\nbn.pop  %a\n"  1
-stmt: CALLV(ar)   "vo.call       %0()\nbn.pop  %a\n"  1
+ar:   ADDRGP4     "%a"
+ar:   reg         "%0"
+
+reg:  CALLF4(ar)  "%c = call %0\nsp += %a\n"  hasargs(a)
+reg:  CALLI4(ar)  "%c = call %0\nsp += %a\n"  hasargs(a)
+reg:  CALLP4(ar)  "%c = call %0\nsp += %a\n"  hasargs(a)
+reg:  CALLU4(ar)  "%c = call %0\nsp += %a\n"  hasargs(a)
+
+
+reg:  CALLF4(ar)  "%c = call %0\n"  1
+reg:  CALLI4(ar)  "%c = call %0\n"  1
+reg:  CALLP4(ar)  "%c = call %0\n"  1
+reg:  CALLU4(ar)  "%c = call %0\n"  1
+
+
+stmt: CALLV(ar)   "call %0\nsp += %a\n"  1
 stmt: CALLB(ar,ar) "docall " 1
 
-
+addrRegCon: reg "%0" 0
+addrRegCon: cvreg "%0" 0
+addrRegCon: con "%0" 0
+addrRegCon: addr "%0" 0
 
 stmt: RETF4(addrRegCon)  "exitReturning.4 %0\n"  1
 stmt: RETI4(addrRegCon)  "exitReturning.4 %0\n"  1
@@ -397,7 +442,7 @@ stmt: ARGU4(addrRegCon)  "push.4 %0\n"  1
 stmt: ARGB(INDIRB(dataaddr)) "pushBytes align(%b)\n\t\tbyteCount(%a)\n\t\tsource(%0)\n\t\texpectingZero(%c)\n"
 stmt: ARGB(INDIRB(reg))       "<ARGB>\n"      10
 
-stmt: ASGNB(reg,INDIRB(reg))  "asgnb %a, %b, %0, %1\n"  1
+stmt: ASGNB(reg,INDIRB(reg))  "copy size=%a, align=%b, src=%0, dest=%1\n"  1
 %%
 /*
 
@@ -482,6 +527,22 @@ static void emit2(Node p) {
                 break;
         }
         */
+    int op = specific(p->op); 
+
+    switch( op ) {
+        case CALL+F:
+        case CALL+I:
+        case CALL+P:
+        case CALL+U:
+              if(p->syms['c'-'a']->u.c.v.i == 0){
+                        print("%c = call %0");
+                } else {
+                        print("%c = call %0\nsp += %a");
+                }
+
+              /*p->syms['c'-'a']->x.name*/
+           break;
+    }
 }
 static void doarg(Node p) {
         static int argno;
@@ -534,46 +595,43 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int ncalls) {
 static void defconst(int suffix, int size, Value v) {
         if (suffix == F && size == 4) {
                 float f = v.d;
-                print(".word 0x%x\n", *(unsigned *)&f);
+                print(".def4 0x%x\n", *(unsigned *)&f);
         }
         else if (suffix == F && size == 8) {
                 double d = v.d;
                 unsigned *p = (unsigned *)&d;
-                print(".word 0x%x\n.word 0x%x\n", p[swap], p[!swap]);
+                print(".def4 0x%x\n..def4 0x%x\n", p[swap], p[!swap]);
         }
         else if (suffix == P)
-                print(".word 0x%x\n", (unsigned)v.p);
+                print(".def4 0x%x\n", (unsigned)v.p);
         else if (size == 1)
-                print(".byte 0x%x\n", (unsigned)((unsigned char)(suffix == I ? v.i : v.u)));
+                print(".def1 0x%x\n", (unsigned)((unsigned char)(suffix == I ? v.i : v.u)));
         else if (size == 2)
-                print(".half 0x%x\n", (unsigned)((unsigned short)(suffix == I ? v.i : v.u)));
+                print(".def2 0x%x\n", (unsigned)((unsigned short)(suffix == I ? v.i : v.u)));
         else if (size == 4)
-                print(".word 0x%x\n", (unsigned)(suffix == I ? v.i : v.u));
+                print(".def4 0x%x\n", (unsigned)(suffix == I ? v.i : v.u));
 }
 static void defaddress(Symbol p) {
-        if (pic && p->scope == LABELS)
-                print(".gpword %s\n", p->x.name);
-        else
-                print(".word %s\n", p->x.name);
+        print(".def4 %s\n", p->x.name);
 }
 static void defstring(int n, char *str) {
         char *s;
 
         for (s = str; s < str + n; s++)
-                print(".byte %d\n", (*s)&0377);
+                print(".def1 %d\n", (*s)&0377);
 }
 static void export(Symbol p) {
         print(".globl %s\n", p->x.name);
 }
 static void import(Symbol p) {
         if (!isfunc(p->type))
-                print(".extern %s %d\n", p->name, p->type->size);
+                print(".extern %s\n", p->name);
 }
 static void defsymbol(Symbol p) {
         if (p->scope >= LOCAL && p->sclass == STATIC)
-                p->x.name = stringf("L.%d", genlabel(1));
+                p->x.name = stringf("_L%d", genlabel(1));
         else if (p->generated)
-                p->x.name = stringf("L.%s", p->name);
+                p->x.name = stringf("_L%s", p->name);
         else if(p->scope == CONSTANTS && isint(p->type))
         {
                 p->x.name = stringf("%d", p->u.c.v.i);
@@ -594,31 +652,24 @@ static void address(Symbol q, Symbol p, long n) {
         }
 }
 static void global(Symbol p) {
+        print(".align %d\n", p->type->align);
+        print("%s:\n", p->x.name);
         if (p->u.seg == BSS) {
-                if (p->sclass == STATIC || Aflag >= 2)
-                        print(".lcomm %s,%d\n", p->x.name, p->type->size);
-                else
-                        print( ".comm %s,%d\n", p->x.name, p->type->size);
-        } else {
-                if (p->u.seg == DATA
-                && (p->type->size == 0 || p->type->size > gnum))
-                        print(".data\n");
-                else if (p->u.seg == DATA)
-                        print(".sdata\n");
-                print(".align %c\n", ".01.2...3"[p->type->align]);
-                print("%s:\n", p->x.name);
+                print( ".reserve %d\n", p->type->size);
         }
 }
 static void segment(int n) {
         cseg = n;
         switch (n) {
-        case CODE: print(".text\n");  break;
-        case LIT:  print(".rdata\n"); break;
+        case CODE: print("\n.text\n");  break;
+        case LIT:  print("\n.lit\n"); break;
+        case BSS: print("\n.bss\n");  break;
+        case DATA:  print("\n.data\n"); break;
         }
 }
 static void space(int n) {
         if (cseg != BSS)
-                print(".space %d\n", n);
+                print(".reserve %d\n", n);
 }
 
 static void blkloop(int dreg, int doff, int sreg, int soff, int size, int tmps[]) {
@@ -627,11 +678,11 @@ static void blkloop(int dreg, int doff, int sreg, int soff, int size, int tmps[]
         print("addu $%d,$%d,%d\n", sreg, sreg, size&~7);
         print("addu $%d,$%d,%d\n", tmps[2], dreg, size&~7);
         blkcopy(tmps[2], doff, sreg, soff, size&7, tmps);
-        print("L.%d:\n", lab);
+        print("L_%d:\n", lab);
         print("addu $%d,$%d,%d\n", sreg, sreg, -8);
         print("addu $%d,$%d,%d\n", tmps[2], tmps[2], -8);
         blkcopy(tmps[2], doff, sreg, soff, 8, tmps);
-        print("bltu $%d,$%d,L.%d\n", dreg, tmps[2], lab);*/
+        print("bltu $%d,$%d,L_%d\n", dreg, tmps[2], lab);*/
 }
 static void blkfetch(int size, int off, int reg, int tmp) {
      /*   assert(size == 1 || size == 2 || size == 4);
