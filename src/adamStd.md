@@ -224,21 +224,20 @@ stmt:  ASGNF4(daddr,rc)        "    *%0 = %1 .f4\n"                1
 reg:   CVFF4(reg)              "    convert F%a -> F4 %0\n"        1
 reg:   CVFI4(reg)              "    convert F%a -> I4 %0\n"        1
 reg:   CVIF4(reg)              "    convert I%a -> F4 %0\n"        1
-cvreg: CVII1(reg)              "%0 .i%a"                           0
-cvreg: CVII2(reg)              "%0 .i%a"                           0
-cvreg: CVII4(reg)              "%0 .i%a"                           0
-cvreg: CVIU1(reg)              "%0 .i%a"                           0
-cvreg: CVIU2(reg)              "%0 .i%a"                           0
-cvreg: CVIU4(reg)              "%0 .i%a"                           0
-cvreg: CVPU4(reg)              "%0 .p%a"                           0
-cvreg: CVUI1(reg)              "%0 .u%a"                           0
-cvreg: CVUI2(reg)              "%0 .u%a"                           0
-cvreg: CVUI4(reg)              "%0 .u%a"                           0
-cvreg: CVUP4(reg)              "%0 .u%a"                           0
-cvreg: CVUU1(reg)              "%0 .u%a"                           0
-cvreg: CVUU2(reg)              "%0 .u%a"                           0
-cvreg: CVUU4(reg)              "%0 .u%a"                           0
-reg:   cvreg                   "    %c = %0\n"                    1
+reg:   CVII1(reg)              "    %c = %0 .i%a\n"                0
+reg:   CVII2(reg)              "    %c = %0 .i%a\n"                0
+reg:   CVII4(reg)              "    %c = %0 .i%a\n"                0
+reg:   CVIU1(reg)              "    %c = %0 .i%a\n"                0
+reg:   CVIU2(reg)              "    %c = %0 .i%a\n"                0
+reg:   CVIU4(reg)              "    %c = %0 .i%a\n"                0
+reg:   CVPU4(reg)              "    %c = %0 .p%a\n"                0
+reg:   CVUI1(reg)              "    %c = %0 .u%a\n"                0
+reg:   CVUI2(reg)              "    %c = %0 .u%a\n"                0
+reg:   CVUI4(reg)              "    %c = %0 .u%a\n"                0
+reg:   CVUP4(reg)              "    %c = %0 .u%a\n"                0
+reg:   CVUU1(reg)              "    %c = %0 .u%a\n"                0
+reg:   CVUU2(reg)              "    %c = %0 .u%a\n"                0
+reg:   CVUU4(reg)              "    %c = %0 .u%a\n"                0
 ind:   INDIRI1(daddr)          "*%0 .i1"                           0
 ind:   INDIRI2(daddr)          "*%0 .i2"                           0
 ind:   INDIRI4(daddr)          "*%0 .4"                            0
@@ -283,15 +282,15 @@ reg:   ADDF4(reg,reg)          "    push %0\n    push %1\n    %c = call _addF4\n
 reg:   SUBI4(reg,rc)           "    %c = %0 - %1\n"                1
 reg:   SUBU4(reg,rc)           "    %c = %0 - %1\n"                1
 reg:   SUBP4(reg,rc)           "    %c = %0 - %1\n"                1
-reg:   SUBF4(reg,reg)          "    sub.f4  %c = %0 - %1\n"        1
-reg:   DIVI4(reg,reg)          "    div.i4  %c = %0 / %1\n"        1
-reg:   DIVU4(reg,reg)          "    div.u4  %c = %0 / %1\n"        1
-reg:   DIVF4(reg,reg)          "    div.f4  %c = %0 / %1\n"        1
-reg:   MULI4(reg,reg)          "    mul.i4  %c = %0 * %1\n"        1
-reg:   MULU4(reg,reg)          "    mul.u4  %c = %0 * %1\n"        1
-reg:   MULF4(reg,reg)          "    mul.f4  %c = %0 * %1\n"        1
-reg:   MODI4(reg,reg)          "    mod.i4  %c = %0 % %1\n"        1
-reg:   MODU4(reg,reg)          "    mod.u4  %c = %0 % %1\n"        1
+reg:   SUBF4(reg,reg)          "    push %0\n    push %1\n    %c = call _subF4\n    sp += 8\n"   1
+reg:   DIVI4(reg,reg)          "    push %0\n    push %1\n    %c = call _divF4\n    sp += 8\n"   1
+reg:   DIVU4(reg,reg)          "    push %0\n    push %1\n    %c = call _divu4\n    sp += 8\n"   1
+reg:   DIVF4(reg,reg)          "    push %0\n    push %1\n    %c = call _divF4\n    sp += 8\n"   1
+reg:   MULI4(reg,reg)          "    push %0\n    push %1\n    %c = call _muli4\n    sp += 8\n"   1
+reg:   MULU4(reg,reg)          "    push %0\n    push %1\n    %c = call _mulu4\n    sp += 8\n"   1
+reg:   MULF4(reg,reg)          "    push %0\n    push %1\n    %c = call _mulF4\n    sp += 8\n"   1
+reg:   MODI4(reg,reg)          "    push %0\n    push %1\n    %c = call _modi4\n    sp += 8\n"   1
+reg:   MODU4(reg,reg)          "    push %0\n    push %1\n    %c = call _modu4\n    sp += 8\n"   1
 ar:    ADDRGP4                 "%a"                                0
 ar:    reg                     "%0"                                1
 stmt:  LABELV                  "%a:\n"                             0
@@ -316,7 +315,7 @@ stmt:  GEF4(reg,reg)           "    jmpIfGEf4(%a, %0, %1)\n"       2
 stmt:  GTF4(reg,reg)           "    jmpIfGTf4(%a, %0, %1)\n"       2
 stmt:  NEF4(reg,reg)           "    jmpIfNEf4(%a, %0, %1)\n"       2
 reg:   CALLF4(ar)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
-reg:   CALLI4(addr)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
+reg:   CALLI4(ar)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
 reg:   CALLP4(ar)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
 reg:   CALLU4(ar)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
 stmt:  CALLV(ar)               "    call %0\n    sp += %a\n"       hasargs(a)

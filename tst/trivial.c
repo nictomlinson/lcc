@@ -83,6 +83,7 @@ static int aFunction(float f1, float f2, unsigned int t) {
   c = getNextChar(getShort());
   strct = extGetStruct(1, 2);
   f3 = 54.3;
+  f3 *= f3;
   strct.c = c;
   extStruct = strct;
   extStruct.b = 'a';
