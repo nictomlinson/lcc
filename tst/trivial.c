@@ -2,9 +2,18 @@ extern unsigned char c1;
 extern unsigned short c2;
 extern char getChar();
 extern short getShort();
+extern char (*getChar_f)();
+extern int getInt();
 extern int i1;
-/*int adder() { return ((char)(c1 + c2)) + i1; }*/
-int adder() { return getChar()+ getShort() ; }
+typedef struct {
+  char c;
+} byte;
+int adder() { return (*getChar_f)(); }
+/*byte adder() {
+  byte b;
+  b.c = 'a';
+  return b;
+}*/
 
 /*
     short c;
@@ -25,7 +34,7 @@ static void func()
     extFunc(*strtPtr);
 }
 */
-/*
+
 typedef struct {
   char c;
   char b;
@@ -76,6 +85,7 @@ static int aFunction(float f1, float f2, unsigned int t) {
   f3 = 54.3;
   strct.c = c;
   extStruct = strct;
+  extStruct.b = 'a';
   strctPtr = &strct;
   strctPtr->b = myStaticInt;
   dbl = 37.0;
@@ -96,4 +106,3 @@ unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
   x = 3 + a + i;
   return x;
 }
-*/
