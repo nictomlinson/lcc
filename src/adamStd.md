@@ -12,6 +12,8 @@
 #define COST_OF_REG_COPY 2
 #define COST_OF_DRG_COPY 4
 
+#include "c.h"
+
 #define readsreg(p) \
         (generic((p)->op)==INDIR && (p)->kids[0]->op==VREG+P)
 #define setsrc(d) ((d) && (d)->x.regnode && \
@@ -19,9 +21,26 @@
         (d)->x.regnode->mask&src->x.regnode->mask)
 
 #define relink(a, b) ((b)->x.prev = (a), (a)->x.next = (b))
-#define hasargs(p) (p->syms[0] && p->syms[0]->u.c.v.i > 0 ? 0 : LBURG_MAX)
 
-#include "c.h"
+// Some macros for deciding which rule to use for call node code generation
+// Intrinsics are adam standard instructions that behave like functions.
+// They take arguments from the stack. Unlike standard calling convention C functions,
+// they consume their arguments and so after executing them there is no need to pop
+// the arguments from the stack
+// The compiler allows these intrinsics to appear in C code like normal extern functions
+// and maps them to the corresponding assembler instruction
+// We make it the job of the assembler to strip off, or ignore, the leading prefix.
+static const char prefix[] = "__admStdIntrinsic_";
+static const int prefixLen = strlen(prefix);
+#define isNameIntrinsic(f)  ( (strlen(f)>prefixLen && memcmp(f, prefix, prefixLen)==0) )
+#define isNodeIntrinsic(p) (p->kids[0] && p->kids[0]->syms[0] && isNameIntrinsic(p->kids[0]->syms[0]->name))
+#define callNodeHasArgs(p) (p->syms[0] && p->syms[0]->u.c.v.i > 0)
+
+#define hasargs(p) (!isNodeIntrinsic(p) && callNodeHasArgs(p) ? 0 : LBURG_MAX)
+#define hasNoArgs(p) (!isNodeIntrinsic(p) && !callNodeHasArgs(p) ? 0 : LBURG_MAX)
+#define onlyIfIntrinsic(p) (isNodeIntrinsic(p) ? 0 : LBURG_MAX) 
+
+
 #define NODEPTR_TYPE Node
 #define OP_LABEL(p) ((p)->op)
 #define LEFT_CHILD(p) ((p)->kids[0])
@@ -317,11 +336,16 @@ reg:   CALLI4(ar)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
 reg:   CALLP4(ar)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
 reg:   CALLU4(ar)              "    %c = call %0\n    sp += %a\n"  hasargs(a)
 stmt:  CALLV(ar)               "    call %0\n    sp += %a\n"       hasargs(a)
-reg:   CALLF4(ar)              "    %c = call %0\n"                1
-reg:   CALLI4(ar)              "    %c = call %0\n"                1
-reg:   CALLP4(ar)              "    %c = call %0\n"                1
-reg:   CALLU4(ar)              "    %c = call %0\n"                1
-stmt:  CALLV(ar)               "    call %0\n"                     1
+reg:   CALLF4(ar)              "    %c = call %0\n"                hasNoArgs(a)
+reg:   CALLI4(ar)              "    %c = call %0\n"                hasNoArgs(a)
+reg:   CALLP4(ar)              "    %c = call %0\n"                hasNoArgs(a)
+reg:   CALLU4(ar)              "    %c = call %0\n"                hasNoArgs(a)
+stmt:  CALLV(ar)               "    call %0\n"                     hasNoArgs(a)
+reg:   CALLI4(ar)              "    %c = %0()\n"                   onlyIfIntrinsic(a)
+reg:   CALLP4(ar)              "    %c = %0()\n"                   onlyIfIntrinsic(a)
+reg:   CALLU4(ar)              "    %c = %0()\n"                   onlyIfIntrinsic(a)
+reg:   CALLF4(ar)              "    %c = %0()\n"                   onlyIfIntrinsic(a)
+stmt:  CALLV(ar)               "    call %0\n"                     onlyIfIntrinsic(a)
 stmt:  CALLB(ar,ar)            "    docall "                       1
 arc:   reg                     "%0"                                0
 arc:   con                     "%0"                                0
@@ -583,6 +607,7 @@ static int bitcount(unsigned mask) {
                         n++;
         return n;
 }
+
 
 /* stabinit - initialize stab output */
 static void stabinit(char *file, int argc, char *argv[]) {

@@ -48,6 +48,7 @@ extern void ftype(char a, char b);
 typedef struct Person Person;
 extern Person person;
 extern void doPerson(FType *ftype, Person *person);
+extern int __admStdIntrinsic_SomRandomIntrinsic(int a, int b);
 
 unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
                              char *iptr);
@@ -78,6 +79,9 @@ static int aFunction(float f1, float f2, unsigned int t) {
   unsigned int (*ptrToAddSeven)(char a, int s, short i, float f, myStruct strc,
                                 char *iptr);
   signed char c;
+
+  c = __admStdIntrinsic_SomRandomIntrinsic(15, 115);
+
   useShort(*cPtr);
   doPerson(&ftype, &person);
   myFType('a', 'b');
