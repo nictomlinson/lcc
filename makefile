@@ -11,10 +11,12 @@ RANLIB=ranlib
 DIFF=diff
 RM=rm -f
 TSTDIR=$(BUILDDIR)/$(TARGET)/tst
+SAMPLEDIR=$(BUILDDIR)/sample/$(TARGET)
 CUSTOM=custom.mk
 include $(CUSTOM)
 B=$(BUILDDIR)/
 T=$(TSTDIR)/
+S=$(SAMPLEDIR)/
 
 what:
 	-@echo make all rcc lburg cpp lcc bprint liblcc triple clean clobber samples
@@ -218,7 +220,24 @@ $Bsample/symbolic/trivial.html: rcc lburg cpp lcc bprint liblcc $Bsample/symboli
 $Bsample/bytecode/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/bytecode tst/trivial.c
 	lcc -Wf-target=bytecode -S  -o $Bsample/bytecode/trivial.s tst/trivial.c
 
+xsamples: $S8q.s
 
+
+$S8q.s:	tst/8q.c all $S;	lcc -Wf-target=$(TARGET) -S  -o $@ tst/8q.c
+
+
+$Bsample/adam/std/: ; mkdir -p $B/sample/adam/std
+$Bsample/x86/linux/: ; mkdir -p $B/sample/x86/linux
+$Bsample/m1/magic1/: ; mkdir -p $B/sample/m1/magic1
+$Bsample/alpha/osf/: ; mkdir -p $B/sample/alpha/osf
+$Bsample/mips/irix/: ; mkdir -p $B/sample/mips/irix
+$Bsample/sparc/sun/: ; mkdir -p $B/sample/sparc/sun
+$Bsample/sparc/solaris/: ; mkdir -p $B/sample/sparc/solaris
+$Bsample/x86/win32/: ; mkdir -p $B/sample/x86/win32
+$Bsample/symbolic/osf/: ; mkdir -p $B/sample/symbolic/osf
+$Bsample/symbolic/irix/: ; mkdir -p $B/sample/symbolic/irix
+$Bsample/symbolic/: ; mkdir -p $B/sample/symbolic
+$Bsample/bytecode/: ; mkdir -p $B/sample/bytecode
 
 
 $Bsample/adam/std: ; mkdir -p $B/sample/adam/std
@@ -234,8 +253,7 @@ $Bsample/symbolic/irix: ; mkdir -p $B/sample/symbolic/irix
 $Bsample/symbolic: ; mkdir -p $B/sample/symbolic
 $Bsample/bytecode: ; mkdir -p $B/sample/bytecode
 
-
-test:	$T8q.s \
+test: $T8q.s \
 	$Tarray.s \
 	$Tcf.s \
 	$Tcq.s \

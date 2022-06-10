@@ -190,16 +190,14 @@ con:   CNSTI4                  "%a"                                0
 con:   CNSTU4                  "%a"                                0
 con:   CNSTP4                  "%a"                                0
 con:   CNSTF4                  "%a.f4"                             0
-laddr: ADDRLP4                 "lp+%F%a"                           0
-paddr: ADDRFP4                 "lp+%F+%a"                          0
+laddr: ADDRLP4                 "lp%a"                              0
+paddr: ADDRFP4                 "lp+%a"                             0
 gaddr: ADDRGP4                 "dp+%a"                             0
 addr:  gaddr                   "%0"                                0
 addr:  laddr                   "%0"                                0
 addr:  paddr                   "%0"                                0
 daddr: addr                    "%0"                                0
 daddr: reg                     "%0"                                0
-daddr: ADDP4(addr, con)        "%0+%1"                             0
-daddr: ADDP4(reg, con)         "%0+%1"                             0
 rc:    con                     "%0"                                0
 rc:    reg                     "%0"                                0
 stmt:  reg                     ""                                  0
@@ -221,9 +219,9 @@ stmt:  ASGNI4(daddr,rc)        "    *%0 = %1 .i4\n"                1
 stmt:  ASGNU4(daddr,rc)        "    *%0 = %1 .u4\n"                1
 stmt:  ASGNP4(daddr,rc)        "    *%0 = %1 .p4\n"                1
 stmt:  ASGNF4(daddr,rc)        "    *%0 = %1 .f4\n"                1
-reg:   CVFF4(reg)              "    convert F%a -> F4 %0\n"        1
-reg:   CVFI4(reg)              "    convert F%a -> I4 %0\n"        1
-reg:   CVIF4(reg)              "    convert I%a -> F4 %0\n"        1
+reg:   CVFF4(reg)              "    push %0\n    %c = call _convertF%aToF4\n    sp += 4\n"        1
+reg:   CVFI4(reg)              "    push %0\n    %c = call _convertF%aToI4\n    sp += 4\n"        1
+reg:   CVIF4(reg)              "    push %0\n    %c = call _convertI%aToF4\n    sp += 4\n"        1
 reg:   CVII1(reg)              "    %c = %0 .i%a\n"                0
 reg:   CVII2(reg)              "    %c = %0 .i%a\n"                0
 reg:   CVII4(reg)              "    %c = %0 .i%a\n"                0
@@ -294,7 +292,7 @@ reg:   MODU4(reg,reg)          "    push %0\n    push %1\n    %c = call _modu4\n
 ar:    ADDRGP4                 "%a"                                0
 ar:    reg                     "%0"                                1
 stmt:  LABELV                  "%a:\n"                             0
-stmt:  JUMPV(ar)               "    jmp *%0\n"                     1
+stmt:  JUMPV(ar)               "    jmp %0\n"                      1
 stmt:  EQI4(reg,con)           "    jmp %a if %0 == %1\n"          1
 stmt:  EQI4(reg,reg)           "    jmp %a if %0 == %1\n"          1
 stmt:  EQU4(reg,reg)           "    jmp %a if %0 == %1\n"          1
@@ -327,16 +325,16 @@ stmt:  CALLV(ar)               "    call %0\n"                     1
 stmt:  CALLB(ar,ar)            "    docall "                       1
 arc:   reg                     "%0"                                0
 arc:   con                     "%0"                                0
-arc:   addr                    "%0"                                0
-stmt:  RETF4(arc)              "    setResult.f4 %0\n"             1
-stmt:  RETI4(arc)              "    setResult.i4 %0\n"             1
-stmt:  RETU4(arc)              "    setResult.u4 %0\n"             1
-stmt:  RETP4(arc)              "    setResult.u4 %0\n"             1
+arc:   addr                    "& %0"                              0
+stmt:  RETF4(arc)              "    result.f4 = %0\n"              1
+stmt:  RETI4(arc)              "    result.i4 = %0\n"              1
+stmt:  RETU4(arc)              "    result.u4 = %0\n"              1
+stmt:  RETP4(arc)              "    result.u4 = %0\n"              1
 stmt:  ARGF4(arc)              "    push %0\n"                     1
 stmt:  ARGI4(arc)              "    push %0\n"                     1
 stmt:  ARGP4(arc)              "    push %0\n"                     1
 stmt:  ARGU4(arc)              "    push %0\n"                     1
-stmt:  ARGB(INDIRB(daddr))     "    push %0 .%a align=%b\n"        1
+stmt:  ARGB(INDIRB(daddr))     "    push *%0 .%a align=%b\n"       1
 stmt:  ARGB(INDIRB(reg))       "    <ARGB>\n"                      10
 stmt:  ASGNB(reg,INDIRB(reg))  "    copy *%0 = *%1 .%a align=%b\n" 1
 %%
@@ -443,13 +441,13 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int ncalls) {
         reg8Count = bitcount(usedmask[REG8]);
         assert(reg8Count==0);
         if(reg4Count || framesize){
-            printf("enter regCount=%d, localBytes=%d\n", reg4Count, framesize);
+            printf("    enter regCount=%d, localBytes=%d\n", reg4Count, framesize);
         }
         emitcode();
         if(reg4Count || framesize){
-          printf("exitAndReturn\n");
+          printf("    exitAndReturn\n");
         } else {
-          printf("Return\n");
+          printf("    Return\n");
         }
         print("\n");
 }

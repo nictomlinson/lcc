@@ -58,6 +58,7 @@ char getNextChar(int i);
 static int myStaticInt = 17;
 static int bssInt1;
 static char bssChar1;
+static float bssFloat1;
 extern short getShort();
 extern void useShort(short s);
 extern char *cPtr;
@@ -82,7 +83,10 @@ static int aFunction(float f1, float f2, unsigned int t) {
   myFType('a', 'b');
   c = getNextChar(getShort());
   strct = extGetStruct(1, 2);
-  f3 = 54.3;
+  x = bssFloat1;
+  x = x + 1;
+  getNextChar(x);
+  f3 = bssInt1;
   f3 *= f3;
   strct.c = c;
   extStruct = strct;
@@ -107,3 +111,5 @@ unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
   x = 3 + a + i;
   return x;
 }
+
+int doReturn() { return 117; }
