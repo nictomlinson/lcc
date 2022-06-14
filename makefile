@@ -171,6 +171,7 @@ $Bhideset$O:	cpp/hideset.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/hideset.c
 $Bgetopt$O:	cpp/getopt.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/getopt.c
 $Bunix$O:	cpp/unix.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/unix.c
 
+# TODO: Get a make target that will compile all the tests and samples to assembler for all LCC target architectures
 TRIVIAL: $Bsample/x86/linux/trivial.s \
 		$Bsample/m1/magic1/trivial.s \
 		$Bsample/alpha/osf/trivial.s \
