@@ -5,6 +5,7 @@ extern short getShort();
 extern char (*getChar_f)();
 extern int getInt();
 extern int i1;
+int y;
 typedef struct {
   char c;
 } byte;
@@ -51,7 +52,7 @@ extern void doPerson(FType *ftype, Person *person);
 extern int __admStdIntrinsic_SomRandomIntrinsic(int a, int b);
 
 unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
-                             char *iptr);
+                      char *iptr);
 extern int extInt;
 extern myStruct extGetStruct(int a, int b);
 extern myStruct extStruct;
@@ -110,10 +111,17 @@ static int aFunction(float f1, float f2, unsigned int t) {
 }
 
 unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
-                             char *iptr) {
+                      char *iptr) {
   char x;
   x = 3 + a + i;
   return x;
+}
+
+void add9ToY(int q) { y = q + 9; }
+
+int simpleCallingFunc(int x, int y, int z) {
+  add9ToY(y);
+  return z + 3;
 }
 
 int doReturn() { return 117; }
