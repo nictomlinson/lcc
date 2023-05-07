@@ -67,7 +67,8 @@ RCCOBJS=$Balloc$O \
 	$Bx86$O \
 	$Bx86linux$O \
 	$Bm1$O \
-	$BadamStd$O
+	$BadamStd$O \
+	$Bsplit16$O
 
 $Brcc$E::	$Bmain$O $Blibrcc$A $(EXTRAOBJS)
 		$(LD) $(LDFLAGS) -o $@ $Bmain$O $(EXTRAOBJS) $Blibrcc$A $(EXTRALIBS)
@@ -115,6 +116,7 @@ $Bx86$O:	$Bx86.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86.c
 $Bx86linux$O:	$Bx86linux.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86linux.c
 $Bm1$O:	$Bm1.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bm1.c
 $BadamStd$O:	$BadamStd.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $BadamStd.c
+$Bsplit16$O:	$Bsplit16.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bsplit16.c
 
 
 $Bdagcheck.c:	$Blburg$E src/dagcheck.md; $Blburg src/dagcheck.md $@
@@ -125,6 +127,7 @@ $Bx86.c:	$Blburg$E src/x86.md;      $Blburg src/x86.md      $@
 $Bx86linux.c:	$Blburg$E src/x86linux.md; $Blburg src/x86linux.md $@
 $Bm1.c:	$Blburg$E src/m1.md; $Blburg src/m1.md $@
 $BadamStd.c:	$Blburg$E src/adamStd.md; $Blburg src/adamStd.md $@
+$Bsplit16.c:	$Blburg$E src/split16.md; $Blburg src/split16.md $@
 
 $Bbprint$E:	$Bbprint$O;		$(LD) $(LDFLAGS) -o $@ $Bbprint$O 
 $Bops$E:	$Bops$O;		$(LD) $(LDFLAGS) -o $@ $Bops$O 
@@ -183,10 +186,14 @@ TRIVIAL: $Bsample/x86/linux/trivial.s \
 		$Bsample/symbolic/irix/trivial.s \
 		$Bsample/symbolic/trivial.html \
 		$Bsample/bytecode/trivial.s \
-		$Bsample/adam/std/trivial.s 
+		$Bsample/adam/std/trivial.s \
+		$Bsample/split16/std/trivial.s 
 		
 $Bsample/adam/std/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/adam/std tst/trivial.c
 	lcc -Wf-target=adam/std -S  -o $Bsample/adam/std/trivial.s tst/trivial.c
+
+$Bsample/split16/std/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/split16/std tst/trivial.c
+	lcc -Wf-target=split16/std -S  -o $Bsample/split16/std/trivial.s tst/trivial.c
 
 $Bsample/x86/linux/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/x86/linux tst/trivial.c
 	lcc -Wf-target=x86/linux -S  -o $Bsample/x86/linux/trivial.s tst/trivial.c
@@ -228,6 +235,7 @@ $S8q.s:	tst/8q.c all $S;	lcc -Wf-target=$(TARGET) -S  -o $@ tst/8q.c
 
 
 $Bsample/adam/std/: ; mkdir -p $B/sample/adam/std
+$Bsample/split16/std/: ; mkdir -p $B/sample/split16/std
 $Bsample/x86/linux/: ; mkdir -p $B/sample/x86/linux
 $Bsample/m1/magic1/: ; mkdir -p $B/sample/m1/magic1
 $Bsample/alpha/osf/: ; mkdir -p $B/sample/alpha/osf
@@ -242,6 +250,7 @@ $Bsample/bytecode/: ; mkdir -p $B/sample/bytecode
 
 
 $Bsample/adam/std: ; mkdir -p $B/sample/adam/std
+$Bsample/split16/std: ; mkdir -p $B/sample/split16/std
 $Bsample/x86/linux: ; mkdir -p $B/sample/x86/linux
 $Bsample/m1/magic1: ; mkdir -p $B/sample/m1/magic1
 $Bsample/alpha/osf: ; mkdir -p $B/sample/alpha/osf
@@ -314,7 +323,7 @@ testclean:
 
 clean::		testclean
 		$(RM) $B*$O
-		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $Bm1.c $BadamStd.c
+		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $Bm1.c $BadamStd.c $Bsplit16.c
 		$(RM) $Brcc1$E $Brcc1$E $B1rcc$E $B2rcc$E
 		$(RM) $B*.ilk
 
@@ -358,6 +367,7 @@ RCCSRCS=src/alloc.c \
 	$Bx86linux.c \
 	$Bm1.c \
 	$BadamStd.c \
+	$Bsplit16.c \
 	$Bx86.c
 
 C=$Blcc -A -d0.6  -Isrc -I$(BUILDDIR)
