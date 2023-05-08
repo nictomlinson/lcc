@@ -70,7 +70,7 @@ static struct {
   int b;
 } someStruct = {'a', 15};
 static const char a_char_literal[] = "hello world";
-
+/*
 static int aFunction(float f1, float f2, unsigned int t) {
   myStruct strct = {5, 4, 3, 'f'};
   myStruct *strctPtr;
@@ -116,7 +116,7 @@ unsigned int addSeven(char a, int s, short i, float f, myStruct strc,
   x = 3 + a + i;
   return x;
 }
-
+*/
 void add9ToY(int q) { y = q + 9; }
 
 int simpleCallingFunc(int x, int y, int z) {

@@ -631,7 +631,7 @@ static void stabsym(Symbol p) {
         if (p == cfunc && IR->stabline)
                 (*IR->stabline)(&p->src);
 }
-Interface adamStdIR = {
+Interface split16IR = {
         1, 1, 0,  /* char */
         2, 2, 0,  /* short */
         4, 4, 0,  /* int */
