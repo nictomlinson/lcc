@@ -68,7 +68,8 @@ RCCOBJS=$Balloc$O \
 	$Bx86linux$O \
 	$Bm1$O \
 	$BadamStd$O \
-	$Bsplit16$O
+	$Bsplit16$O \
+	$Bsplit4$O 
 
 $Brcc$E::	$Bmain$O $Blibrcc$A $(EXTRAOBJS)
 		$(LD) $(LDFLAGS) -o $@ $Bmain$O $(EXTRAOBJS) $Blibrcc$A $(EXTRALIBS)
@@ -103,6 +104,7 @@ $Bstring$O:	src/string.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/string.c
 $Bsym$O:	src/sym.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/sym.c
 $Bsymbolic$O:	src/symbolic.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/symbolic.c
 $Bbytecode$O:	src/bytecode.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/bytecode.c
+$Bsplit4$O:	src/split4.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/split4.c
 $Btrace$O:	src/trace.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/trace.c
 $Btree$O:	src/tree.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/tree.c
 $Btypes$O:	src/types.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/types.c
@@ -117,7 +119,6 @@ $Bx86linux$O:	$Bx86linux.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86linux.c
 $Bm1$O:	$Bm1.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bm1.c
 $BadamStd$O:	$BadamStd.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $BadamStd.c
 $Bsplit16$O:	$Bsplit16.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bsplit16.c
-
 
 $Bdagcheck.c:	$Blburg$E src/dagcheck.md; $Blburg src/dagcheck.md $@
 $Balpha.c:	$Blburg$E src/alpha.md;    $Blburg src/alpha.md    $@
@@ -185,15 +186,20 @@ TRIVIAL: $Bsample/x86/linux/trivial.s \
 		$Bsample/symbolic/osf/trivial.s \
 		$Bsample/symbolic/irix/trivial.s \
 		$Bsample/symbolic/trivial.html \
+		$Bsample/symbolic/trivial.txt \
 		$Bsample/bytecode/trivial.s \
 		$Bsample/adam/std/trivial.s \
-		$Bsample/split16/std/trivial.s 
+		$Bsample/split16/forth/trivial.s \
+		$Bsample/split16/std/trivial.s
 		
 $Bsample/adam/std/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/adam/std tst/trivial.c
 	lcc -Wf-target=adam/std -S  -o $Bsample/adam/std/trivial.s tst/trivial.c
 
 $Bsample/split16/std/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/split16/std tst/trivial.c
 	lcc -Wf-target=split16/std -S  -o $Bsample/split16/std/trivial.s tst/trivial.c
+
+$Bsample/split16/forth/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/split16/forth tst/trivial.c
+	lcc -Wf-target=split16/forth -S  -o $Bsample/split16/forth/trivial.s tst/trivial.c
 
 $Bsample/x86/linux/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/x86/linux tst/trivial.c
 	lcc -Wf-target=x86/linux -S  -o $Bsample/x86/linux/trivial.s tst/trivial.c
@@ -225,6 +231,9 @@ $Bsample/symbolic/irix/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/symbo
 $Bsample/symbolic/trivial.html: rcc lburg cpp lcc bprint liblcc $Bsample/symbolic tst/trivial.c
 	lcc -Wf-target=symbolic -Wf-html -S  -o $Bsample/symbolic/trivial.html tst/trivial.c
 
+$Bsample/symbolic/trivial.txt: rcc lburg cpp lcc bprint liblcc $Bsample/symbolic tst/trivial.c
+	lcc -Wf-target=symbolic -Wf-v -S  -o $Bsample/symbolic/trivial.txt tst/trivial.c
+
 $Bsample/bytecode/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/bytecode tst/trivial.c
 	lcc -Wf-target=bytecode -S  -o $Bsample/bytecode/trivial.s tst/trivial.c
 
@@ -236,6 +245,7 @@ $S8q.s:	tst/8q.c all $S;	lcc -Wf-target=$(TARGET) -S  -o $@ tst/8q.c
 
 $Bsample/adam/std/: ; mkdir -p $B/sample/adam/std
 $Bsample/split16/std/: ; mkdir -p $B/sample/split16/std
+$Bsample/split16/forth/: ; mkdir -p $B/sample/split16/forth
 $Bsample/x86/linux/: ; mkdir -p $B/sample/x86/linux
 $Bsample/m1/magic1/: ; mkdir -p $B/sample/m1/magic1
 $Bsample/alpha/osf/: ; mkdir -p $B/sample/alpha/osf
@@ -251,6 +261,7 @@ $Bsample/bytecode/: ; mkdir -p $B/sample/bytecode
 
 $Bsample/adam/std: ; mkdir -p $B/sample/adam/std
 $Bsample/split16/std: ; mkdir -p $B/sample/split16/std
+$Bsample/split16/forth: ; mkdir -p $B/sample/split16/forth
 $Bsample/x86/linux: ; mkdir -p $B/sample/x86/linux
 $Bsample/m1/magic1: ; mkdir -p $B/sample/m1/magic1
 $Bsample/alpha/osf: ; mkdir -p $B/sample/alpha/osf
@@ -323,7 +334,7 @@ testclean:
 
 clean::		testclean
 		$(RM) $B*$O
-		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $Bm1.c $BadamStd.c $Bsplit16.c
+		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $Bm1.c $BadamStd.c $Bsplit16.c 
 		$(RM) $Brcc1$E $Brcc1$E $B1rcc$E $B2rcc$E
 		$(RM) $B*.ilk
 
@@ -358,6 +369,7 @@ RCCSRCS=src/alloc.c \
 	src/null.c \
 	src/symbolic.c \
 	src/bytecode.c \
+	src/split4.c \
 	src/gen.c \
 	src/stab.c \
 	$Bdagcheck.c \

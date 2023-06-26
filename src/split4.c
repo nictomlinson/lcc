@@ -1,14 +1,5 @@
-%{
 #include "c.h"
-#define NODEPTR_TYPE Node
-#define OP_LABEL(p) ((p)->op)
-#define LEFT_CHILD(p) ((p)->kids[0])
-#define RIGHT_CHILD(p) ((p)->kids[1])
-#define STATE_LABEL(p) ((p)->x.state)
-#define relink(a, b) ((b)->x.prev = (a), (a)->x.next = (b))
-
-
-#define I(f) split16_##f
+#define I(f) forth_##f
 
 static char rcsid[] = "$Id$";
 
@@ -19,372 +10,6 @@ static int dumpPacked = 0;
 
 static char *suffixes[] = {"0", "F", "D",  "C",  "S",  "I",  "U",  "P",
                            "V", "B", "10", "11", "12", "13", "14", "15"};
-%}
-%start stmt
-%term CNSTF4=4113 CNSTF8=8209
-%term CNSTI1=1045 CNSTI2=2069 CNSTI4=4117
-%term CNSTP2=2071
-%term CNSTU1=1046 CNSTU2=2070 CNSTU4=4118
-
-%term ARGB=41
-%term ARGF4=4129 ARGF8=8225
-%term ARGI2=2085 ARGI4=4133
-%term ARGP2=2087
-%term ARGU2=2086 ARGU4=4134
-
-%term ASGNB=57
-%term ASGNF4=4145 ASGNF8=8241
-%term ASGNI1=1077 ASGNI2=2101 ASGNI4=4149
-%term ASGNP2=2103
-%term ASGNU1=1078 ASGNU2=2102 ASGNU4=4150
-
-%term INDIRB=73
-%term INDIRF4=4161 INDIRF8=8257
-%term INDIRI1=1093 INDIRI2=2117 INDIRI4=4165
-%term INDIRP2=2119
-%term INDIRU1=1094 INDIRU2=2118 INDIRU4=4166
-
-%term CVFF4=4209 CVFF8=8305
-%term CVFI2=2165 CVFI4=4213
-
-%term CVIF4=4225 CVIF8=8321
-%term CVII1=1157 CVII2=2181 CVII4=4229
-%term CVIU1=1158 CVIU2=2182 CVIU4=4230
-
-%term CVPU2=2198
-
-%term CVUI1=1205 CVUI2=2229 CVUI4=4277
-%term CVUP2=2231
-%term CVUU1=1206 CVUU2=2230 CVUU4=4278
-
-%term NEGF4=4289 NEGF8=8385
-%term NEGI2=2245 NEGI4=4293
-
-%term CALLB=217
-%term CALLF4=4305 CALLF8=8401
-%term CALLI2=2261 CALLI4=4309
-%term CALLP2=2263
-%term CALLU2=2262 CALLU4=4310
-%term CALLV=216
-
-%term RETF4=4337 RETF8=8433
-%term RETI2=2293 RETI4=4341
-%term RETP2=2295
-%term RETU2=2294 RETU4=4342
-%term RETV=248
-
-%term ADDRGP2=2311
-
-%term ADDRFP2=2327
-
-%term ADDRLP2=2343
-
-%term ADDF4=4401 ADDF8=8497
-%term ADDI2=2357 ADDI4=4405
-%term ADDP2=2359
-%term ADDU2=2358 ADDU4=4406
-
-%term SUBF4=4417 SUBF8=8513
-%term SUBI2=2373 SUBI4=4421
-%term SUBP2=2375
-%term SUBU2=2374 SUBU4=4422
-
-%term LSHI2=2389 LSHI4=4437
-%term LSHU2=2390 LSHU4=4438
-
-%term MODI2=2405 MODI4=4453
-%term MODU2=2406 MODU4=4454
-
-%term RSHI2=2421 RSHI4=4469
-%term RSHU2=2422 RSHU4=4470
-
-%term BANDI2=2437 BANDI4=4485
-%term BANDU2=2438 BANDU4=4486
-
-%term BCOMI2=2453 BCOMI4=4501
-%term BCOMU2=2454 BCOMU4=4502
-
-%term BORI2=2469 BORI4=4517
-%term BORU2=2470 BORU4=4518
-
-%term BXORI2=2485 BXORI4=4533
-%term BXORU2=2486 BXORU4=4534
-
-%term DIVF4=4545 DIVF8=8641
-%term DIVI2=2501 DIVI4=4549
-%term DIVU2=2502 DIVU4=4550
-
-%term MULF4=4561 MULF8=8657
-%term MULI2=2517 MULI4=4565
-%term MULU2=2518 MULU4=4566
-
-%term EQF4=4577 EQF8=8673
-%term EQI2=2533 EQI4=4581
-%term EQU2=2534 EQU4=4582
-
-%term GEF4=4593 GEF8=8689
-%term GEI2=2549 GEI4=4597
-%term GEU2=2550 GEU4=4598
-
-%term GTF4=4609 GTF8=8705
-%term GTI2=2565 GTI4=4613
-%term GTU2=2566 GTU4=4614
-
-%term LEF4=4625 LEF8=8721
-%term LEI2=2581 LEI4=4629
-%term LEU2=2582 LEU4=4630
-
-%term LTF4=4641 LTF8=8737
-%term LTI2=2597 LTI4=4645
-%term LTU2=2598 LTU4=4646
-
-%term NEF4=4657 NEF8=8753
-%term NEI2=2613 NEI4=4661
-%term NEU2=2614 NEU4=4662
-
-%term JUMPV=584
-
-%term LABELV=600
-
-
-%term VREGP=711
-%term LOADI4=4325
-%term LOADU4=4326
-%term LOADI2=2277
-%term LOADU2=2278
-%term LOADP2=2279
-%term LOADF4=4321
-%term LOADB=233
-%term LOADF8=8417
-%term LOADI1=1253
-%term LOADU1=1254
-%%
-
-
-stmt: CALLF4(p) "CALLF4\n"
-stmt: CALLF8(p) "CALLF8\n"
-stmt: CALLI2(p) "CALLI2\n"
-stmt: CALLI4(p) "CALLI4\n"
-stmt: CALLP2(p) "CALLP2\n"
-stmt: CALLU2(p) "CALLU2\n"
-stmt: CALLU4(p) "CALLU4\n"
-stmt: v "%a"
-
-v: ARGB(b) "ARGB\n"
-v: ARGF4(f) "ARGF4\n"
-v: ARGF8(f) "ARGF8\n"
-v: ARGI2(i) "ARGI2\n"
-v: ARGI4(i) "ARGI4\n"
-v: ARGP2(p) "ARGP2\n"
-v: ARGU2(u) "ARGU2\n"
-v: ARGU4(u) "ARGU4\n"
-
-v: ASGNB(p,b) "%0\n%1%LASGNB\n"
-v: ASGNF4(p,f) "%0\n%1%LASGNF4\n"
-v: ASGNF8(p,f) "%0\n%1%LASGNF8\n"
-v: ASGNI1(p,i) "%0\n%1%LASGNI1\n"
-v: ASGNI2(p,i) "%0\n%1%LASGNI2\n"
-v: ASGNI4(p,i) "%0\n%1%LASGNI4\n"
-v: ASGNP2(p,p) "%0\n%1%LASGNP2\n"
-v: ASGNU1(p,u) "%0\n%1%LASGNU1\n"
-v: ASGNU2(p,u) "%0\n%1%LASGNU2\n"
-v: ASGNU4(p,u) "%0\n%1%LASGNU4\n"
-
-v: EQF4(f,f) "%0\n%1%LEQF4 %a\n"
-v: EQF8(f,f) "%0\n%1%LEQF8 %a\n"
-v: EQI2(i,i) "%0\n%1%LEQI2 %a\n"
-v: EQI4(i,i) "%0\n%1%LEQI4 %a\n"
-v: EQU2(u,u) "%0\n%1%LEQU2 %a\n"
-v: EQU4(u,u) "%0\n%1%LEQU4 %a\n"
-v: GEF4(f,f) "%0\n%1%LGEF4 %a\n"
-v: GEF8(f,f) "%0\n%1%LGEF8 %a\n"
-v: GEI2(i,i) "%0\n%1%LGEI2 %a\n"
-v: GEI4(i,i) "%0\n%1%LGEI4 %a\n"
-v: GEU2(u,u) "%0\n%1%LGEU2 %a\n"
-v: GEU4(u,u) "%0\n%1%LGEU4 %a\n"
-v: GTF4(f,f) "%0\n%1%LGTF4 %a\n"
-v: GTF8(f,f) "%0\n%1%LGTF8 %a\n"
-v: GTI2(i,i) "%0\n%1%LGTI2 %a\n"
-v: GTI4(i,i) "%0\n%1%LGTI4 %a\n"
-v: GTU2(u,u) "%0\n%1%LGTU2 %a\n"
-v: GTU4(u,u) "%0\n%1%LGTU4 %a\n"
-v: LEF4(f,f) "%0\n%1%LLEF4 %a\n"
-v: LEF8(f,f) "%0\n%1%LLEF8 %a\n"
-v: LEI2(i,i) "%0\n%1%LLEI2 %a\n"
-v: LEI4(i,i) "%0\n%1%LLEI4 %a\n"
-v: LEU2(u,u) "%0\n%1%LLEU2 %a\n"
-v: LEU4(u,u) "%0\n%1%LLEU4 %a\n"
-v: LTF4(f,f) "%0\n%1%LLTF4 %a\n"
-v: LTF8(f,f) "%0\n%1%LLTF8 %a\n"
-v: LTI2(i,i) "%0\n%1%LLTI2 %a\n"
-v: LTI4(i,i) "%0\n%1%LLTI4 %a\n"
-v: LTU2(u,u) "%0\n%1%LLTU2 %a\n"
-v: LTU4(u,u) "%0\n%1%LLTU4 %a\n"
-v: NEF4(f,f) "%0\n%1%LNEF4 %a\n"
-v: NEF8(f,f) "%0\n%1%LNEF8 %a\n"
-v: NEI2(i,i) "%0\n%1%LNEI2 %a\n"
-v: NEI4(i,i) "%0\n%1%LNEI4 %a\n"
-v: NEU2(u,u) "%0\n%1%LNEU2 %a\n"
-v: NEU4(u,u) "%0\n%1%LNEU4 %a\n"
-
-v: JUMPV(p) "%0%LJUMPV\n"
-v: LABELV "%I%a: // offset=%A\n"
-
-v: RETF4(f) "%0%LRETF4\n"
-v: RETF8(f) "%0%LRETF8\n"
-v: RETI2(i) "%0%LRETI2\n"
-v: RETI4(i) "%0%LRETI4\n"
-v: RETP2(p) "%0%LRETP2\n"
-v: RETU2(u) "%0%LRETU2\n"
-v: RETU4(u) "%0%LRETU4\n"
-v: RETV "RETV\n"
-
-v: bogus "%a" 1
-
-bogus: b "%a" 1
-bogus: f "%a" 1
-bogus: i "%a" 1
-bogus: p "%a" 1
-bogus: u "%a" 1
-bogus: v "%a" 1
-
-
-b: bogus "%a"
-
-u: CVIU1(i) "CVIU1"
-u: CVIU2(i) "CVIU2"
-u: CVIU4(i) "CVIU4"
-p: CVPU2(p) "CVPU2"
-i: CVUI1(u) "CVUI1"
-i: CVUI2(u) "CVUI2"
-i: CVUI4(u) "CVUI4"
-u: CVUU1(u) "CVUU1"
-u: CVUU2(u) "CVUU2"
-u: CVUU4(u) "CVUU4"
-f: CVFF4(f) "CVFF4"
-f: CVFF8(f) "CVFF8"
-f: CVIF4(i) "CVIF4"
-f: CVIF8(i) "CVIF8"
-i: CVFI2(f) "CVFI2"
-i: CVFI4(f) "CVFI4"
-i: CVII1(i) "CVII1"
-i: CVII2(i) "CVII2"
-i: CVII4(i) "CVII4"
-p: CVUP2(u) "CVUP2"
-
-
-f: ADDF4(f,f) "%0\n%1%LADDF4"
-f: ADDF8(f,f) "%0\n%1%LADDF8"
-i: ADDI2(i,i) "%0\n%1%LADDI2"
-i: ADDI4(i,i) "%0\n%1%LADDI4"
-u: ADDU2(u,u) "%0\n%1%LADDU2"
-u: ADDU4(u,u) "%0\n%1%LADDU4"
-p: ADDP2(i,p) "%0\n%1%LADDP2"
-p: ADDP2(p,i) "%0\n%1%LADDP2"
-p: ADDP2(p,u) "%0\n%1%LADDP2"
-p: ADDP2(u,p) "%0\n%1%LADDP2"
-
-f: SUBF4(f,f) "%0\n%1%LSUBF4"
-f: SUBF8(f,f) "%0\n%1%LSUBF8"
-i: SUBI2(i,i) "%0\n%1%LSUBI2"
-i: SUBI4(i,i) "%0\n%1%LSUBI4"
-u: SUBU2(u,u) "%0\n%1%LSUBU2"
-u: SUBU4(u,u) "%0\n%1%LSUBU4"
-p: SUBP2(p,i) "%0\n%1%LSUBP2"
-p: SUBP2(p,u) "%0\n%1%LSUBP2"
-
-f: NEGF4(f) "%0%LNEGF4"
-f: NEGF8(f) "%0%LNEGF8"
-i: NEGI2(i) "%0%LNEGI2"
-i: NEGI4(i) "%0%LNEGI4"
-
-f: DIVF4(f,f) "%0%LDIVF4"
-f: DIVF8(f,f) "%0%LDIVF8"
-i: DIVI2(i,i) "%0%LDIVI2"
-i: DIVI4(i,i) "%0%LDIVI4"
-u: DIVU2(u,u) "%0%LDIVU2"
-u: DIVU4(u,u) "%0%LDIVU4"
-
-f: MULF4(f,f) "%0%LMULF4"
-f: MULF8(f,f) "%0%LMULF8"
-i: MULI2(i,i) "%0%LMULI2"
-i: MULI4(i,i) "%0%LMULI4"
-u: MULU2(u,u) "%0%LMULU2"
-u: MULU4(u,u) "%0%LMULU4"
-
-i: LSHI2(i,i) "%0\n%1%LLSHI2"
-i: LSHI4(i,i) "%0\n%1%LLSHI4"
-u: LSHU2(u,i) "%0\n%1%LLSHU2"
-u: LSHU4(u,i) "%0\n%1%LLSHU4"
-
-i: RSHI2(i,i) "%0%LRSHI2"
-i: RSHI4(i,i) "%0%LRSHI4"
-u: RSHU2(u,i) "%0%LRSHU2"
-u: RSHU4(u,i) "%0%LRSHU4"
-
-i: BANDI2(i,i) "%0%LBANDI2"
-i: BANDI4(i,i) "%0%LBANDI4"
-u: BANDU2(u,u) "%0%LBANDU2"
-u: BANDU4(u,u) "%0%LBANDU4"
-
-i: BCOMI2(i) "%0%LBCOMI2"
-i: BCOMI4(i) "%0%LBCOMI4"
-u: BCOMU2(u) "%0%LBCOMU2"
-u: BCOMU4(u) "%0%LBCOMU4"
-
-i: BORI2(i,i) "%0%LBORI2"
-i: BORI4(i,i) "%0%LBORI4"
-u: BORU2(u,u) "%0%LBORU2"
-u: BORU4(u,u) "%0%LBORU4"
-
-i: BXORI2(i,i) "%0%LBXORI2"
-i: BXORI4(i,i) "%0%LBXORI4"
-u: BXORU2(u,u) "%0%LBXORU2"
-u: BXORU4(u,u) "%0%LBXORU4"
-
-i: MODI2(i,i) "%0%LMODI2"
-i: MODI4(i,i) "%0%LMODI4"
-u: MODU2(u,u) "%0%LMODU2"
-u: MODU4(u,u) "%0%LMODU4"
-
-f: CNSTF4 "%ICNSTF4 %a // offset=%A"
-f: CNSTF8 "%ICNSTF8 %a // offset=%A"
-i: CNSTI1 "%ICNSTI1 %a // offset=%A"
-i: CNSTI2 "%ICNSTI2 %a // offset=%A"
-i: CNSTI4 "%ICNSTI4 %a // offset=%A"
-p: CNSTP2 "%ICNSTP2 %a // offset=%A"
-u: CNSTU1 "%ICNSTU1 %a // offset=%A"
-u: CNSTU2 "%ICNSTU2 %a // offset=%A"
-u: CNSTU4 "%ICNSTU4 %a // offset=%A"
-
-f: CALLF4(p) "CALLF4"
-f: CALLF8(p) "CALLF8"
-i: CALLI2(p) "CALLI2"
-i: CALLI4(p) "CALLI4"
-p: CALLP2(p) "CALLP2"
-u: CALLU2(p) "CALLU2"
-u: CALLU4(p) "CALLU4"
-v: CALLB(p,p) "CALLB\n"
-v: CALLV(p) "%0%LCALLV\n"
-
-
-f: INDIRF4(p) "%0%LINDIRF4"
-f: INDIRF8(p) "%0%LINDIRF8"
-i: INDIRI1(p) "%0%LINDIRI1"
-i: INDIRI2(p) "%0%LINDIRI2"
-i: INDIRI4(p) "%0%LINDIRI4"
-p: INDIRP2(p) "%0%LINDIRP2"
-u: INDIRU1(p) "%0%LINDIRU1"
-u: INDIRU2(p) "%0%LINDIRU2"
-u: INDIRU4(p) "%0%LINDIRU4"
-b: INDIRB(p) "%0%LINDIRB"
-
-
-p: ADDRFP2 "%IADDRFP2 %A // name=%a" 1
-p: ADDRLP2 "%IADDRLP2 %A // name=%a" 1
-p: ADDRGP2 "%IADDRGP2 %a // offset=%A" 1
-
-%%
 
 static void emitSymbol(Symbol p, const char *qualifier) {
   switch (p->scope) {
@@ -654,7 +279,7 @@ static void dumptree(Node p) {
       assert(!p->kids[0]);
       assert(!p->kids[1]);
       assert(p->syms[0] && p->syms[0]->x.name);
-      print("%ILABEL %s: // offset=%d\n", indent, p->syms[0]->x.name,
+      print("%I%s: // offset=%d\n", indent, p->syms[0]->x.name,
             p->syms[0]->x.offset);
       return;
     case CVF:
@@ -696,7 +321,7 @@ static void dumptree(Node p) {
       assert(!p->kids[1]);
       assert(p->syms[0]);
       assert(optype(p->op) != B);
-      if (0 && generic(p->kids[0]->op) == ADDRG) {
+      if (generic(p->kids[0]->op) == ADDRG) {
         // compile time calls simply only need the
         // address of the target in thread
         Node q = p->kids[0];
@@ -779,86 +404,6 @@ static void I(emit)(Node p) {
   }
 }
 
-
-
-static int getrule(Node p, int nt) {
-  int rulenum=0;
-  
-  assert(p);
-  // implement the same assertion that _rule will implement on nt
-  // so that we can dump the node in error before _rule causes a
-  // a fatal error that kills the process. NELEMS(_ntname) is just
-  // a convient and reliable way to get the same upper limit that
-  // _rule uses in its assertion. In _rule, it is generated by lburg
-  if (!(nt < 1 || nt > NELEMS(_ntname)-2)) rulenum = _rule(p->x.state, nt);
-  if (!rulenum) {
-    fprint(stderr, "(%x->op=%s at %w is corrupt.)\n", p, opname(p->op), &src);
-    print("Node in error>>>\n");
-    dumptree(p);
-    print("<<<Node in error\n");
-    fflush(stdout);
-    assert(0);
-  }
-  return rulenum;
-}
-
-static void emit2(Node p) { assert(0 && "Not expected emit2 to be used"); }
-
-static unsigned emitassembly(Node p, int nt) {
-  int rulenum;
-  short *nts;
-  char *fmt;
-  Node kids[10];
-
-  rulenum = getrule(p, nt);
-  nts = _nts[rulenum];
-  fmt = _templates[rulenum];
-  assert(fmt);
-  if (_isinstruction[rulenum] && p->x.emitted)
-    print("%s", p->syms[RX]->x.name);
-  else if (*fmt == '#')
-    emit2(p);
-  else {
-    if (*fmt == '?') {
-      assert(0 && "not expected ? at start of instruction");
-      fmt++;
-      assert(p->kids[0]);
-      if (p->syms[RX] == p->x.kids[0]->syms[RX])
-        while (*fmt++ != '\n')
-        ;
-    }
-    for (_kids(p, rulenum, kids); *fmt; fmt++)
-      if (*fmt != '%')
-        (void)putchar(*fmt);
-      else if (*++fmt == 'F')
-        print("%d", framesize);
-      else if (*fmt >= '0' && *fmt <= '9'){
-        indent++;
-        emitassembly(kids[*fmt - '0'], nts[*fmt - '0']);
-        indent--;
-      }
-        else if (*fmt >= 'a' && *fmt < 'a' + NELEMS(p->syms))
-            fputs(p->syms[*fmt - 'a']->x.name, stdout);
-        else if (*fmt >= 'A' && *fmt < 'A' + NELEMS(p->syms))
-            print("%d", p->syms[*fmt - 'A']->x.offset);
-        else if (*fmt == 'L') print("\n%I", indent);
-        else if (*fmt == 'I') print("%I", indent);
-        else(void) putchar(*fmt);
-    }
-    return 0;
-}
-
-static void I(emitBurg)(Node p) {
-  for (; p; p = p->x.next) {
-#if(0)
-    assert(p->x.registered);
-#endif
-    emitassembly(p, p->x.inst);
-    p->x.emitted = 1;
-  }
-}
-
-
 static void gen02(Node p) {
   assert(p);
   if (generic(p->op) == ARG) {
@@ -878,77 +423,13 @@ static void gen01(Node p) {
   }
 }
 
-
-static void reduce(Node p, int nt) {
-	int rulenum, i;
-	short *nts;
-	Node kids[10];
-
-	rulenum = getrule(p, nt);
-	nts = _nts[rulenum];
-	_kids(p, rulenum, kids);
-	for (i = 0; nts[i]; i++)
-		reduce(kids[i], nts[i]);
-	if (_isinstruction[rulenum]) {
-		assert(p->x.inst == 0 || p->x.inst == nt);
-		p->x.inst = nt;
-		if (p->syms[RX] && p->syms[RX]->temporary) {
-			debug(fprint(stderr, "(using %s)\n", p->syms[RX]->name));
-			p->syms[RX]->x.usecount++;
-		}
-	}
-}
-
-static Node *prune(Node p, Node pp[]) {
-	if (p == NULL)
-		return pp;
-	p->x.kids[0] = p->x.kids[1] = p->x.kids[2] = NULL;
-	if (p->x.inst == 0)
-		return prune(p->kids[1], prune(p->kids[0], pp));
-	else {
-		prune(p->kids[1], prune(p->kids[0], &p->x.kids[0]));
-		*pp = p;
-		return pp + 1;
-	}
-}
-
-static void linearize(Node p, Node next) {
-	int i;
-
-	for (i = 0; i < NELEMS(p->x.kids) && p->x.kids[i]; i++)
-		linearize(p->x.kids[i], next);
-	relink(next->x.prev, p);
-	relink(p, next);
-	debug(fprint(stderr, "(listing %x)\n", p));
-}
-
-
 static Node I(gen)(Node p) {
   Node q;
-  Node dummy;
-  struct node sentinel;
-
 
   assert(p);
   for (q = p; q; q = q->link) {
     gen01(q);
-   _label(q);
-   reduce(q, 1);
   }
-  for (q = p; q; q = q->link) {
-    prune(p, &dummy);
-  }
-
-  relink(&sentinel, &sentinel);
-  for (q = p; q; q = q->link){
-    linearize(q, &sentinel);
-  }
-  p = sentinel.x.next;
-  assert(p);
-  sentinel.x.next->x.prev = NULL;
-  sentinel.x.prev->x.next = NULL;
-
-
   return p;
 }
 
@@ -963,7 +444,7 @@ static void I(progbeg)(int argc, char *argv[]) {
     swap = ((int)(u.i == 1)) != IR->little_endian;
   }
   indent = 0;
-  print("; Split16/std Assembly generated by LCC4.2\n");
+  print("; Split16/Forth Assembly generated by LCC4.2\n");
 }
 
 static void I(progend)(void) {}
@@ -1133,11 +614,11 @@ static void I(stabline)(Coordinate *cp) {
   if (cp->y != prevline) print("line %d\n", prevline = cp->y);
 }
 
-#define split16_blockbeg blockbeg
-#define split16_blockend blockend
+#define forth_blockbeg blockbeg
+#define forth_blockend blockend
 
 // clang-format off
-Interface split16IR = {
+Interface split4IR = {
     /* size, align, outofline */
     1, 1, 0, /* char */
     2, 2, 0, /* short */
@@ -1163,7 +644,7 @@ Interface split16IR = {
     I(defconst),
     I(defstring),
     I(defsymbol),
-    I(emitBurg),
+    I(emit),
     I(export),
     I(function),
     I(gen),
