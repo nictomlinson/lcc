@@ -260,6 +260,11 @@ static void dumptree(Node p) {
   }
   switch (generic(p->op)) {
     case CNST:
+      assert(!p->kids[0]);
+      assert(!p->kids[1]);
+      assert(p->syms[0] && p->syms[0]->x.name);
+      print("%I%s %s\n", indent, opname(p->op), p->syms[0]->x.name);
+      return;
     case ADDRG:
       assert(!p->kids[0]);
       assert(!p->kids[1]);
@@ -321,24 +326,23 @@ static void dumptree(Node p) {
       assert(!p->kids[1]);
       assert(p->syms[0]);
       assert(optype(p->op) != B);
+      if (variadic(p->syms[0]->type)){
+        print("%I%d // variadic cell count\n",indent+1, callArgCells);
+      }
       if (generic(p->kids[0]->op) == ADDRG) {
         // compile time calls simply only need the
         // address of the target in thread
         Node q = p->kids[0];
         assert(q->syms[0] && q->syms[0]->x.name);
-        print("%I%s", indent, q->syms[0]->x.name);
+        print("%Icall %s\n", indent, q->syms[0]->x.name);
       } else {
         // Other calls, through a function pointer need to push
         // the address on the stack and do an indirect call
         indent++;
         dumptree(p->kids[0]);
         indent--;
-        print("%I%s", indent, opname(p->op));
+        print("%I%s\n", indent, opname(p->op));
       }
-      if (variadic(p->syms[0]->type))
-        print(" %d // variadic call\n", callArgCells);
-      else
-        print("\n");
       callArgCells = 0;
       return;
     case ASGN:
@@ -399,7 +403,8 @@ static void I(emit)(Node p) {
     }
     if (generic(p->op) == CALL && optype(p->op) != VOID) {
       /*credit: S. Woutersen, Building a C-based processor, December, 2005 */
-      print("%IDISCARD%s%d\n", indent, suffixes[optype(p->op)], opsize(p->op));
+      // 4 = len("CALL"), the character after is the type letter
+      print("%IPOP%S%d\n", indent, opname(p->op)+4, 1, roundup(opsize(p->op),2));
     }
   }
 }
@@ -408,7 +413,8 @@ static void gen02(Node p) {
   assert(p);
   if (generic(p->op) == ARG) {
     assert(p->syms[0]);
-    argoffset += (p->syms[0]->u.c.v.i < 4 ? 4 : p->syms[0]->u.c.v.i);
+    // TODO: replace 2 with const for cell byte count
+    argoffset += (p->syms[0]->u.c.v.i < 2 ? 2 : p->syms[0]->u.c.v.i);
   } else if (generic(p->op) == CALL) {
     maxargoffset = (argoffset > maxargoffset ? argoffset : maxargoffset);
     argoffset = 0;
@@ -474,20 +480,24 @@ static void I(function)(Symbol f, Symbol caller[], Symbol callee[],
   cellInCnt = offset / 2;
   maxargoffset = maxoffset = argoffset = offset = 0;
   gencode(caller, callee);
-  print("%I.info maxoffset=%d maxargoffset=%d isVariadc=%s\n", indent, maxoffset,
-        maxargoffset, variadic(f->type) ? "yes" : "no");
   // now we know how much local and temp space is used, adjust
   // the parameter offsets as they sit above the locals & temps
   for (i = 0; callee[i]; i++) {
     callee[i]->x.offset += maxoffset;
+    #if(0)
     emitSymbol(caller[i], "caller");
+    #endif
     emitSymbol(callee[i], "callee");
   }
+  print("%I.info maxoffset=%d maxargoffset=%d isVariadc=%s\n", indent, maxoffset,
+        maxargoffset, variadic(f->type) ? "yes" : "no");
 
   // emit prolog
   // Calls to variadic functions are followed by a count in the
   // the thread of the number of cells passed, push this to the
   // stack before we enter
+  print("%I.{\n", indent);
+  indent += 2;
   if (variadic(f->type)) {
     print("%Iimm_ir // variadic cell count\n", indent);
     print("%Ienter\n", indent);
@@ -498,8 +508,6 @@ static void I(function)(Symbol f, Symbol caller[], Symbol callee[],
       print("%Ienter\n", indent);
     }
   }
-  print("%I.{\n", indent);
-  indent += 2;
   if ((cellInCnt || variadic(f->type)) && maxoffset) {
     print("%Iunpack.Using@ %d\n", indent, maxoffset);
   } else if (cellInCnt || variadic(f->type)) {

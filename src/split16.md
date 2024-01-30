@@ -1,24 +1,5 @@
 %{
-#include "c.h"
-#define NODEPTR_TYPE Node
-#define OP_LABEL(p) ((p)->op)
-#define LEFT_CHILD(p) ((p)->kids[0])
-#define RIGHT_CHILD(p) ((p)->kids[1])
-#define STATE_LABEL(p) ((p)->x.state)
-#define relink(a, b) ((b)->x.prev = (a), (a)->x.next = (b))
-
-
-#define I(f) split16_##f
-
-static char rcsid[] = "$Id$";
-
-static int indent;
-static int cseg = 0;  // current segment
-static int callArgCells;
-static int dumpPacked = 0;
-
-static char *suffixes[] = {"0", "F", "D",  "C",  "S",  "I",  "U",  "P",
-                           "V", "B", "10", "11", "12", "13", "14", "15"};
+#include "split16.md.pre.c"
 %}
 %start stmt
 %term CNSTF4=4113 CNSTF8=8209
@@ -158,1028 +139,420 @@ static char *suffixes[] = {"0", "F", "D",  "C",  "S",  "I",  "U",  "P",
 %term LOADF8=8417
 %term LOADI1=1253
 %term LOADU1=1254
+
+%term POPI2=4821
+%term POPU2=4822
+%term POPI1=2773
+%term POPU1=2774
+%term POPP1=2775
+%term POPF2=4817
+%term POPF4=8913
+%term POPB=729
+
+
 %%
-
-
-stmt: CALLF4(p) "CALLF4\n"
-stmt: CALLF8(p) "CALLF8\n"
-stmt: CALLI2(p) "CALLI2\n"
-stmt: CALLI4(p) "CALLI4\n"
-stmt: CALLP2(p) "CALLP2\n"
-stmt: CALLU2(p) "CALLU2\n"
-stmt: CALLU4(p) "CALLU4\n"
 stmt: v "%a"
 
-v: ARGB(b) "ARGB\n"
-v: ARGF4(f) "ARGF4\n"
-v: ARGF8(f) "ARGF8\n"
-v: ARGI2(i) "ARGI2\n"
-v: ARGI4(i) "ARGI4\n"
-v: ARGP2(p) "ARGP2\n"
-v: ARGU2(u) "ARGU2\n"
-v: ARGU4(u) "ARGU4\n"
+v: ARGF4(f) "?%I rpush.sp\n%0\n" splitCost(1, 1)
+v: ARGF8(f) "?%I rpush.sp\n%0\n" splitCost(1, 1)
+v: ARGI2(i) "?%I rpush.sp\n%0\n" splitCost(1, 1)
+v: ARGI4(i) "?%I rpush.sp\n%0\n" splitCost(1, 1)
+v: ARGP2(p) "?%I rpush.sp\n%0\n" splitCost(1, 1)
+v: ARGU2(u) "?%I rpush.sp\n%0\n" splitCost(1, 1)
+v: ARGU4(u) "?%I rpush.sp\n%0\n" splitCost(1, 1)
 
-v: ASGNB(p,b) "%0\n%1%LASGNB\n"
-v: ASGNF4(p,f) "%0\n%1%LASGNF4\n"
-v: ASGNF8(p,f) "%0\n%1%LASGNF8\n"
-v: ASGNI1(p,i) "%0\n%1%LASGNI1\n"
-v: ASGNI2(p,i) "%0\n%1%LASGNI2\n"
-v: ASGNI4(p,i) "%0\n%1%LASGNI4\n"
-v: ASGNP2(p,p) "%0\n%1%LASGNP2\n"
-v: ASGNU1(p,u) "%0\n%1%LASGNU1\n"
-v: ASGNU2(p,u) "%0\n%1%LASGNU2\n"
-v: ASGNU4(p,u) "%0\n%1%LASGNU4\n"
+v: ASGNF4(p,f) "%0\n%1%Lstore.32\n" splitCost(1, 1)
+v: ASGNF8(p,f) "%0\n%1%Lstore.64\n" splitCost(1, 1)
+v: ASGNI1(p,i) "%0\n%1%Lstore.s8\n" splitCost(1, 1)
+v: ASGNI2(p,i) "%0\n%1%Lstore.16\n" splitCost(1, 1)
+v: ASGNI4(p,i) "%0\n%1%Lstore.32\n" splitCost(1, 1)
+v: ASGNP2(p,p) "%0\n%1%Lstore.16\n" splitCost(1, 1)
+v: ASGNU1(p,u) "%0\n%1%Lstore.u8\n" splitCost(1, 1)
+v: ASGNU2(p,u) "%0\n%1%Lstore.16\n" splitCost(1, 1)
+v: ASGNU4(p,u) "%0\n%1%Lstore.32\n" splitCost(1, 1)
 
-v: EQF4(f,f) "%0\n%1%LEQF4 %a\n"
-v: EQF8(f,f) "%0\n%1%LEQF8 %a\n"
-v: EQI2(i,i) "%0\n%1%LEQI2 %a\n"
-v: EQI4(i,i) "%0\n%1%LEQI4 %a\n"
-v: EQU2(u,u) "%0\n%1%LEQU2 %a\n"
-v: EQU4(u,u) "%0\n%1%LEQU4 %a\n"
-v: GEF4(f,f) "%0\n%1%LGEF4 %a\n"
-v: GEF8(f,f) "%0\n%1%LGEF8 %a\n"
-v: GEI2(i,i) "%0\n%1%LGEI2 %a\n"
-v: GEI4(i,i) "%0\n%1%LGEI4 %a\n"
-v: GEU2(u,u) "%0\n%1%LGEU2 %a\n"
-v: GEU4(u,u) "%0\n%1%LGEU4 %a\n"
-v: GTF4(f,f) "%0\n%1%LGTF4 %a\n"
-v: GTF8(f,f) "%0\n%1%LGTF8 %a\n"
-v: GTI2(i,i) "%0\n%1%LGTI2 %a\n"
-v: GTI4(i,i) "%0\n%1%LGTI4 %a\n"
-v: GTU2(u,u) "%0\n%1%LGTU2 %a\n"
-v: GTU4(u,u) "%0\n%1%LGTU4 %a\n"
-v: LEF4(f,f) "%0\n%1%LLEF4 %a\n"
-v: LEF8(f,f) "%0\n%1%LLEF8 %a\n"
-v: LEI2(i,i) "%0\n%1%LLEI2 %a\n"
-v: LEI4(i,i) "%0\n%1%LLEI4 %a\n"
-v: LEU2(u,u) "%0\n%1%LLEU2 %a\n"
-v: LEU4(u,u) "%0\n%1%LLEU4 %a\n"
-v: LTF4(f,f) "%0\n%1%LLTF4 %a\n"
-v: LTF8(f,f) "%0\n%1%LLTF8 %a\n"
-v: LTI2(i,i) "%0\n%1%LLTI2 %a\n"
-v: LTI4(i,i) "%0\n%1%LLTI4 %a\n"
-v: LTU2(u,u) "%0\n%1%LLTU2 %a\n"
-v: LTU4(u,u) "%0\n%1%LLTU4 %a\n"
-v: NEF4(f,f) "%0\n%1%LNEF4 %a\n"
-v: NEF8(f,f) "%0\n%1%LNEF8 %a\n"
-v: NEI2(i,i) "%0\n%1%LNEI2 %a\n"
-v: NEI4(i,i) "%0\n%1%LNEI4 %a\n"
-v: NEU2(u,u) "%0\n%1%LNEU2 %a\n"
-v: NEU4(u,u) "%0\n%1%LNEU4 %a\n"
+v: EQF4(f,f) "%0\n%1%LEQF4%T%a\n" splitCost(3, 1)
+v: EQF8(f,f) "%0\n%1%LEQF8%T%a\n" splitCost(3, 1)
+v: EQI2(i,i) "%0\n%1%LEQI2%T%a\n" splitCost(3, 1)
+v: EQI4(i,i) "%0\n%1%LEQI4%T%a\n" splitCost(3, 1)
+v: EQU2(u,u) "%0\n%1%LEQU2%T%a\n" splitCost(3, 1)
+v: EQU4(u,u) "%0\n%1%LEQU4%T%a\n" splitCost(3, 1)
+v: GEF4(f,f) "%0\n%1%LGEF4%T%a\n" splitCost(3, 1)
+v: GEF8(f,f) "%0\n%1%LGEF8%T%a\n" splitCost(3, 1)
+v: GEI2(i,i) "%0\n%1%LGEI2%T%a\n" splitCost(3, 1)
+v: GEI4(i,i) "%0\n%1%LGEI4%T%a\n" splitCost(3, 1)
+v: GEU2(u,u) "%0\n%1%LGEU2%T%a\n" splitCost(3, 1)
+v: GEU4(u,u) "%0\n%1%LGEU4%T%a\n" splitCost(3, 1)
+v: GTF4(f,f) "%0\n%1%LGTF4%T%a\n" splitCost(3, 1)
+v: GTF8(f,f) "%0\n%1%LGTF8%T%a\n" splitCost(3, 1)
+v: GTI2(i,i) "%0\n%1%LGTI2%T%a\n" splitCost(3, 1)
+v: GTI4(i,i) "%0\n%1%LGTI4%T%a\n" splitCost(3, 1)
+v: GTU2(u,u) "%0\n%1%LGTU2%T%a\n" splitCost(3, 1)
+v: GTU4(u,u) "%0\n%1%LGTU4%T%a\n" splitCost(3, 1)
+v: LEF4(f,f) "%0\n%1%LLEF4%T%a\n" splitCost(3, 1)
+v: LEF8(f,f) "%0\n%1%LLEF8%T%a\n" splitCost(3, 1)
+v: LEI2(i,i) "%0\n%1%LLEI2%T%a\n" splitCost(3, 1)
+v: LEI4(i,i) "%0\n%1%LLEI4%T%a\n" splitCost(3, 1)
+v: LEU2(u,u) "%0\n%1%LLEU2%T%a\n" splitCost(3, 1)
+v: LEU4(u,u) "%0\n%1%LLEU4%T%a\n" splitCost(3, 1)
+v: LTF4(f,f) "%0\n%1%LLTF4%T%a\n" splitCost(3, 1)
+v: LTF8(f,f) "%0\n%1%LLTF8%T%a\n" splitCost(3, 1)
+v: LTI2(i,i) "%0\n%1%LLTI2%T%a\n" splitCost(3, 1)
+v: LTI4(i,i) "%0\n%1%LLTI4%T%a\n" splitCost(3, 1)
+v: LTU2(u,u) "%0\n%1%LLTU2%T%a\n" splitCost(3, 1)
+v: LTU4(u,u) "%0\n%1%LLTU4%T%a\n" splitCost(3, 1)
+v: NEF4(f,f) "%0\n%1%LNEF4%T%a\n" splitCost(3, 1)
+v: NEF8(f,f) "%0\n%1%LNEF8%T%a\n" splitCost(3, 1)
+v: NEI2(i,i) "%0\n%1%LNEI2%T%a\n" splitCost(3, 1)
+v: NEI4(i,i) "%0\n%1%LNEI4%T%a\n" splitCost(3, 1)
+v: NEU2(u,u) "%0\n%1%LNEU2%T%a\n" splitCost(3, 1)
+v: NEU4(u,u) "%0\n%1%LNEU4%T%a\n" splitCost(3, 1)
 
-v: JUMPV(p) "%0%LJUMPV\n"
-v: LABELV "%I%a: // offset=%A\n"
+v: EQI2(i,cnst_zero) "%0%Lbr.eqz%T%a\n" splitCost(3, 1)
+v: NEI2(i,cnst_zero) "%0%Lbr.nez%T%a\n" splitCost(3, 1)
 
-v: RETF4(f) "%0%LRETF4\n"
-v: RETF8(f) "%0%LRETF8\n"
-v: RETI2(i) "%0%LRETI2\n"
-v: RETI4(i) "%0%LRETI4\n"
-v: RETP2(p) "%0%LRETP2\n"
-v: RETU2(u) "%0%LRETU2\n"
-v: RETU4(u) "%0%LRETU4\n"
+v: JUMPV(p) "%0%LJUMPV\n" 10
+v: LABELV "%<%I%a%>:\n"
+
+v: RETF4(f) "%0%Lreturn.32\n"
+v: RETF8(f) "%0%Lreturn.64\n" 
+v: RETI2(i) "%0%Lreturn.16\n"
+v: RETI4(i) "%0%Lreturn.32\n"
+v: RETP2(p) "%0%Lreturn.16\n"
+v: RETU2(u) "%0%Lreturn.16\n"
+v: RETU4(u) "%0%Lreturn.32\n"
 v: RETV "RETV\n"
 
-v: bogus "%a" 1
-
-bogus: b "%a" 1
-bogus: f "%a" 1
-bogus: i "%a" 1
-bogus: p "%a" 1
-bogus: u "%a" 1
-bogus: v "%a" 1
 
 
-b: bogus "%a"
 
-u: CVIU1(i) "CVIU1"
-u: CVIU2(i) "CVIU2"
-u: CVIU4(i) "CVIU4"
-p: CVPU2(p) "CVPU2"
-i: CVUI1(u) "CVUI1"
-i: CVUI2(u) "CVUI2"
-i: CVUI4(u) "CVUI4"
-u: CVUU1(u) "CVUU1"
-u: CVUU2(u) "CVUU2"
-u: CVUU4(u) "CVUU4"
-f: CVFF4(f) "CVFF4"
-f: CVFF8(f) "CVFF8"
-f: CVIF4(i) "CVIF4"
-f: CVIF8(i) "CVIF8"
-i: CVFI2(f) "CVFI2"
-i: CVFI4(f) "CVFI4"
-i: CVII1(i) "CVII1"
-i: CVII2(i) "CVII2"
-i: CVII4(i) "CVII4"
-p: CVUP2(u) "CVUP2"
+f: CVFF8(f) "%I rpush.sp\n%0%Lcall%Tcv_f4_to_f8" ifCost(cvSrcSize(a) == 4, 1, 1)
+i: CVFI2(f) "%I rpush.sp\n%0%Lcall%Tcv_f4_to_i2" ifCost(cvSrcSize(a) == 4, 1, 1)
+i: CVFI4(f) "%I rpush.sp\n%0%Lcall%Tcv_f4_to_i4" ifCost(cvSrcSize(a) == 4, 1, 1)
+f: CVFF4(f) "%I rpush.sp\n%0%Lcall%Tcv_f8_to_f4" ifCost(cvSrcSize(a) == 8, 1, 1)
+i: CVFI2(f) "%I rpush.sp\n%0%Lcall%Tcv_f8_to_i2" ifCost(cvSrcSize(a) == 8, 1, 1)
+i: CVFI4(f) "%I rpush.sp\n%0%Lcall%Tcv_f8_to_i4" ifCost(cvSrcSize(a) == 8, 1, 1)
 
+i: CVII2(i) "%0%Lsex ; cv_i1_to_i2" ifCost(cvSrcSize(a) == 1, 1, 1)
+f: CVIF4(i) "%I rpush.sp\n%0%Lcall%Tcv_i2_to_f4" ifCost(cvSrcSize(a) == 2, 1, 1)
+f: CVIF8(i) "%I rpush.sp\n%0%Lcal%T[.16]%Tcv_i2_to_f8" ifCost(cvSrcSize(a) == 2, 1, 1)
+i: CVII1(i) "%0 ; cv_i2_to_i1" ifCost(cvSrcSize(a) == 2, 0, 0)
+i: CVII4(i) "%I rpush.sp\n%0%Lcall%Tcv_i2_to_i4" ifCost(cvSrcSize(a) == 2, 1, 1)
+u: CVIU2(i) "%0 ; cv_i2_to_u2" ifCost(cvSrcSize(a) == 2, 0, 0)
+u: CVIU4(i) "%I rpush.sp\n%0%Lcall%Tcv_i2_to_u4" ifCost(cvSrcSize(a) == 2, 1, 1)
+f: CVIF4(i) "%I rpush.sp\n%0%Lcall%Tcv_i4_to_f4" ifCost(cvSrcSize(a) == 4, 1, 1)
+f: CVIF8(i) "%I rpush.sp\n%0%Lcall%Tcv_i4_to_f8" ifCost(cvSrcSize(a) == 4, 1, 1)
+i: CVII1(i) "%I rpush.sp\n%0%Lcall%Tcv_i4_to_i1" ifCost(cvSrcSize(a) == 4, 1, 1)
+i: CVII2(i) "%I rpush.sp\n%0%Lcall%Tcv_i4_to_i2" ifCost(cvSrcSize(a) == 4, 1, 1)
+u: CVIU2(i) "%I rpush.sp\n%0%Lcall%Tcv_i4_to_u2" ifCost(cvSrcSize(a) == 4, 1, 1)
+u: CVIU4(i) "%I rpush.sp\n%0%Lcall%Tcv_i4_to_u4" ifCost(cvSrcSize(a) == 4, 1, 1)
 
-f: ADDF4(f,f) "%0\n%1%LADDF4"
-f: ADDF8(f,f) "%0\n%1%LADDF8"
-i: ADDI2(i,i) "%0\n%1%LADDI2"
-i: ADDI4(i,i) "%0\n%1%LADDI4"
-u: ADDU2(u,u) "%0\n%1%LADDU2"
-u: ADDU4(u,u) "%0\n%1%LADDU4"
-p: ADDP2(i,p) "%0\n%1%LADDP2"
-p: ADDP2(p,i) "%0\n%1%LADDP2"
-p: ADDP2(p,u) "%0\n%1%LADDP2"
-p: ADDP2(u,p) "%0\n%1%LADDP2"
+i: CVUI2(u) "%0%Lpush.16%T0xff%Land.16 ; cv_u1_to_i2" ifCost(cvSrcSize(a) == 1, 1, 1)
+i: CVUI2(u) "%0 ; cv_u2_to_i2" ifCost(cvSrcSize(a) == 2, 0, 0)
+i: CVUI4(u) "%I rpush.sp\n%0%Lcall%Tcv_u2_to_i4" ifCost(cvSrcSize(a) == 2, 1, 1)
+p: CVUP2(u) "%0 ; cv_u2_to_p2" ifCost(cvSrcSize(a) == 2, 0, 0)
+u: CVUU1(u) "%0 ; cv_u2_to_u1" ifCost(cvSrcSize(a) == 2, 0, 0)
+u: CVUU4(u) "%I rpush.sp\n%0%Lcall%Tcv_u2_to_u4" ifCost(cvSrcSize(a) == 2, 1, 1)
+i: CVUI2(u) "%I rpush.sp\n%0%Lcall%Tcv_u4_to_i2" ifCost(cvSrcSize(a) == 4, 1, 1)
+i: CVUI4(u) "%I rpush.sp\n%0%Lcall%Tcv_u4_to_i4" ifCost(cvSrcSize(a) == 4, 1, 1)
+u: CVUU1(u) "%I rpush.sp\n%0%Lcall%Tcv_u4_to_u1" ifCost(cvSrcSize(a) == 4, 1, 1)
+u: CVUU2(u) "%I rpush.sp\n%0%Lcall%Tcv_u4_to_u2" ifCost(cvSrcSize(a) == 4, 1, 1)
 
-f: SUBF4(f,f) "%0\n%1%LSUBF4"
-f: SUBF8(f,f) "%0\n%1%LSUBF8"
-i: SUBI2(i,i) "%0\n%1%LSUBI2"
-i: SUBI4(i,i) "%0\n%1%LSUBI4"
-u: SUBU2(u,u) "%0\n%1%LSUBU2"
-u: SUBU4(u,u) "%0\n%1%LSUBU4"
-p: SUBP2(p,i) "%0\n%1%LSUBP2"
-p: SUBP2(p,u) "%0\n%1%LSUBP2"
+f: ADDF4(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tadd_f32"  splitCost(1, 1)
+f: ADDF8(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tadd_f64"  splitCost(1, 1)
+i: ADDI2(i,i) "%0\n%1%Ladd.16" splitCost(1, 1)
+i: ADDI4(i,i) "%0\n%1%Ladd.32" splitCost(1, 1)
+u: ADDU2(u,u) "%0\n%1%Ladd.16" splitCost(1, 1)
+u: ADDU4(u,u) "%0\n%1%Ladd.32" splitCost(1, 1)
+p: ADDP2(i,p) "%0\n%1%Ladd.16 ; xxa" splitCost(1, 1)
+p: ADDP2(p,i) "%0\n%1%Ladd.16 ; xxb" splitCost(1, 1)
+p: ADDP2(p,u) "%0\n%1%Ladd.16 ; xxc" splitCost(1, 1)
+p: ADDP2(u,p) "%0\n%1%Ladd.16 ; xxd" splitCost(1, 1)
 
-f: NEGF4(f) "%0%LNEGF4"
-f: NEGF8(f) "%0%LNEGF8"
-i: NEGI2(i) "%0%LNEGI2"
-i: NEGI4(i) "%0%LNEGI4"
+f: SUBF4(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tsub_f32" 10
+f: SUBF8(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tsub_f64" 10
+i: SUBI2(i,i) "%0\n%1%Lsub.16" splitCost(1, 1)
+i: SUBI4(i,i) "%0\n%1%Lsub.32" splitCost(1, 1)
+u: SUBU2(u,u) "%0\n%1%Lsub.16" splitCost(1, 1)
+u: SUBU4(u,u) "%0\n%1%Lsub.32" splitCost(1, 1)
+p: SUBP2(p,i) "%0\n%1%Lsub.16" splitCost(1, 1)
+p: SUBP2(p,u) "%0\n%1%Lsub.16" splitCost(1, 1)
 
-f: DIVF4(f,f) "%0%LDIVF4"
-f: DIVF8(f,f) "%0%LDIVF8"
-i: DIVI2(i,i) "%0%LDIVI2"
-i: DIVI4(i,i) "%0%LDIVI4"
-u: DIVU2(u,u) "%0%LDIVU2"
-u: DIVU4(u,u) "%0%LDIVU4"
+i: BANDI2(i,i) "%0\n%1%Land.16" splitCost(1, 1)
+i: BANDI4(i,i) "%0\n%1%Land.32" splitCost(1, 1)
+u: BANDU2(u,u) "%0\n%1%Land.16" splitCost(1, 1)
+u: BANDU4(u,u) "%0\n%1%Land.16" splitCost(1, 1)
 
-f: MULF4(f,f) "%0%LMULF4"
-f: MULF8(f,f) "%0%LMULF8"
-i: MULI2(i,i) "%0%LMULI2"
-i: MULI4(i,i) "%0%LMULI4"
-u: MULU2(u,u) "%0%LMULU2"
-u: MULU4(u,u) "%0%LMULU4"
+i: BORI2(i,i) "%0%Lor.16" splitCost(1, 1)
+i: BORI4(i,i) "%0%Lor.32" splitCost(1, 1)
+u: BORU2(u,u) "%0%Lor.16" splitCost(1, 1)
+u: BORU4(u,u) "%0%Lor.32" splitCost(1, 1)
 
-i: LSHI2(i,i) "%0\n%1%LLSHI2"
-i: LSHI4(i,i) "%0\n%1%LLSHI4"
-u: LSHU2(u,i) "%0\n%1%LLSHU2"
-u: LSHU4(u,i) "%0\n%1%LLSHU4"
+i: BXORI2(i,i) "%0%Lxor.16" splitCost(1, 1)
+i: BXORI4(i,i) "%0%Lxor.32" splitCost(1, 1)
+u: BXORU2(u,u) "%0%Lxor.16" splitCost(1, 1)
+u: BXORU4(u,u) "%0%Lxor.32" splitCost(1, 1)
 
-i: RSHI2(i,i) "%0%LRSHI2"
-i: RSHI4(i,i) "%0%LRSHI4"
-u: RSHU2(u,i) "%0%LRSHU2"
-u: RSHU4(u,i) "%0%LRSHU4"
+i: LSHI2(i,i) "%0\n%1%Llsh.16"
+i: LSHI4(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tlsh_32"
+u: LSHU2(u,i) "%0\n%1%Llsh.16"
+u: LSHU4(u,i) "%I rpush.sp\n%0\n%1%Lcall%Tlsh_32"
 
-i: BANDI2(i,i) "%0%LBANDI2"
-i: BANDI4(i,i) "%0%LBANDI4"
-u: BANDU2(u,u) "%0%LBANDU2"
-u: BANDU4(u,u) "%0%LBANDU4"
+i: RSHI2(i,i) "%0\n%1%Lrsh.16"
+i: RSHI4(i,i) "%I rpush.sp\n%0\n%1%Lcall%Trsh_32"
+u: RSHU2(u,i) "%0\n%1%Lrsh.16"
+u: RSHU4(u,i) "%I rpush.sp\n%0\n%1%Lcall%Trsh_32"
 
-i: BCOMI2(i) "%0%LBCOMI2"
-i: BCOMI4(i) "%0%LBCOMI4"
-u: BCOMU2(u) "%0%LBCOMU2"
-u: BCOMU4(u) "%0%LBCOMU4"
+f: NEGF4(f) "%I rpush.sp\n%0%Lcall%Tneg_f4"
+f: NEGF8(f) "%I rpush.sp\n%0%Lcall%Tneg_f8"
+i: NEGI2(i) "%0%Lneg.16"
+i: NEGI4(i) "%0%Lneg.32"
 
-i: BORI2(i,i) "%0%LBORI2"
-i: BORI4(i,i) "%0%LBORI4"
-u: BORU2(u,u) "%0%LBORU2"
-u: BORU4(u,u) "%0%LBORU4"
+i: BCOMI2(i) "%0%Lpush[.16]%T-1%Lxor.16"
+i: BCOMI4(i) "%I rpush.sp\n%0%Lcall%Tbcom_32"
+u: BCOMU2(u) "%0%Lpush[.16]%T-1%Lxor.16"
+u: BCOMU4(u) "%I rpush.sp\n%0%Lcall%Tbcom_32"
 
-i: BXORI2(i,i) "%0%LBXORI2"
-i: BXORI4(i,i) "%0%LBXORI4"
-u: BXORU2(u,u) "%0%LBXORU2"
-u: BXORU4(u,u) "%0%LBXORU4"
+f: DIVF4(f,f) "%I rpush.sp\n%0%Lcall%Tdiv_f32"
+f: DIVF8(f,f) "%I rpush.sp\n%0%Lcall%Tdiv_f64"
+i: DIVI2(i,i) "%I rpush.sp\n%0%Lcall%Tdiv_i16"
+i: DIVI4(i,i) "%I rpush.sp\n%0%Lcall%Tdiv_i32"
+u: DIVU2(u,u) "%I rpush.sp\n%0%Lcall%Tdiv_u16"
+u: DIVU4(u,u) "%I rpush.sp\n%0%Lcall%Tdiv_u32"
 
-i: MODI2(i,i) "%0%LMODI2"
-i: MODI4(i,i) "%0%LMODI4"
-u: MODU2(u,u) "%0%LMODU2"
-u: MODU4(u,u) "%0%LMODU4"
+f: MULF4(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tmul_f32"
+f: MULF8(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tmul_f64"
+i: MULI2(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tmul_i16"
+i: MULI4(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tmul_i32"
+u: MULU2(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tmul_u16"
+u: MULU4(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tmul_u32"
 
-f: CNSTF4 "%ICNSTF4 %a // offset=%A"
-f: CNSTF8 "%ICNSTF8 %a // offset=%A"
-i: CNSTI1 "%ICNSTI1 %a // offset=%A"
-i: CNSTI2 "%ICNSTI2 %a // offset=%A"
-i: CNSTI4 "%ICNSTI4 %a // offset=%A"
-p: CNSTP2 "%ICNSTP2 %a // offset=%A"
-u: CNSTU1 "%ICNSTU1 %a // offset=%A"
-u: CNSTU2 "%ICNSTU2 %a // offset=%A"
-u: CNSTU4 "%ICNSTU4 %a // offset=%A"
+i: MODI2(i,i) "%I rpush.sp\n%0%Lcall%Tmod_i16"
+i: MODI4(i,i) "%I rpush.sp\n%0%Lcall%Tmod_i32"
+u: MODU2(u,u) "%I rpush.sp\n%0%Lcall%Tmod_u16"
+u: MODU4(u,u) "%I rpush.sp\n%0%Lcall%Tmod_u32"
 
-f: CALLF4(p) "CALLF4"
-f: CALLF8(p) "CALLF8"
-i: CALLI2(p) "CALLI2"
-i: CALLI4(p) "CALLI4"
-p: CALLP2(p) "CALLP2"
-u: CALLU2(p) "CALLU2"
-u: CALLU4(p) "CALLU4"
-v: CALLB(p,p) "CALLB\n"
-v: CALLV(p) "%0%LCALLV\n"
+i: CNSTI1 "%Ipush.16%T%a" splitCost(2, 1)
+u: CNSTU1 "%Ipush.u8%T%a" splitCost(2, 1)
+i: CNSTI2 "%Ipush.16%T%a" splitCost(2, 1)
+u: CNSTU2 "%Ipush.16%T%a" splitCost(3, 1)
+p: CNSTP2 "%Ipush.16%T%a" splitCost(3, 1)
+i: CNSTI4 "%Ipush.32%T%a" splitCost(5, 1)
+u: CNSTU4 "%Ipush.32%T%a" splitCost(5, 1)
+f: CNSTF4 "%Ipush.32%T%a" splitCost(5, 1)
+f: CNSTF8 "%Ipush.64%T%a" splitCost(9, 1)
 
+i: CNSTI1 "%Ipush.s8%T%a" ifCost(inRange(a, 0, 255), 2, 1)
+i: CNSTI2 "%Ipush.s8%T%a" ifCost(inRange(a, 0, 255), 2, 1)
 
-f: INDIRF4(p) "%0%LINDIRF4"
-f: INDIRF8(p) "%0%LINDIRF8"
-i: INDIRI1(p) "%0%LINDIRI1"
-i: INDIRI2(p) "%0%LINDIRI2"
-i: INDIRI4(p) "%0%LINDIRI4"
-p: INDIRP2(p) "%0%LINDIRP2"
-u: INDIRU1(p) "%0%LINDIRU1"
-u: INDIRU2(p) "%0%LINDIRU2"
-u: INDIRU4(p) "%0%LINDIRU4"
-b: INDIRB(p) "%0%LINDIRB"
+cnst_zero: CNSTI2 "%a" range(a,0,0)
+conS8: CNSTI2 "%a" inRange(a, 0, 255)
+conS16: CNSTI2 "%a"
 
 
-p: ADDRFP2 "%IADDRFP2 %A // name=%a" 1
-p: ADDRLP2 "%IADDRLP2 %A // name=%a" 1
-p: ADDRGP2 "%IADDRGP2 %a // offset=%A" 1
+stmt: POPI2(i) "%0%Lpop.32\n"
+stmt: POPU2(u) "%0%Lpop.32\n"
+stmt: POPI1(i) "%0%Lpop.16\n"
+stmt: POPU1(u) "%0%Lpop.16\n"
+stmt: POPP1(p) "%0%Lpop.16\n"
+stmt: POPF2(f) "%0%Lpop.32\n"
+stmt: POPF4(f) "%0%Lpop.64\n"
 
+f: CALLF4(p) "?%I rpush.sp\n%0%Lcall" splitCost(0,0)
+f: CALLF8(p) "?%I rpush.sp\n%0%Lcall" splitCost(0,0)
+i: CALLI2(p) "?%I rpush.sp\n%0%Lcall" splitCost(0,0)
+i: CALLI4(p) "?%I rpush.sp\n%0%Lcall" splitCost(0,0)
+p: CALLP2(p) "?%I rpush.sp\n%0%Lcall" splitCost(0,0)
+u: CALLU2(p) "?%I rpush.sp\n%0%Lcall" splitCost(0,0)
+u: CALLU4(p) "?%I rpush.sp\n%0%Lcall" splitCost(0,0)
+
+f: CALLF4(g16) "?%I rpush.sp\n%Icall%T%0" splitCost(0,0)
+f: CALLF8(g16) "?%I rpush.sp\n%Icall%T%0" splitCost(0,0)
+i: CALLI2(g16) "?%I rpush.sp\n%Icall%T%0" splitCost(0,0)
+i: CALLI4(g16) "?%I rpush.sp\n%Icall%T%0" splitCost(0,0)
+p: CALLP2(g16) "?%I rpush.sp\n%Icall%T%0" splitCost(0,0)
+u: CALLU2(g16) "?%I rpush.sp\n%Icall%T%0" splitCost(0,0)
+u: CALLU4(g16) "?%I rpush.sp\n%Icall%T%0" splitCost(0,0)
+
+v: CALLB(p,p) "ERROR ; Not expecting CALLB(p,p)\n" 100
+v: CALLB(g16,p) "ERROR ; Not expecting CALLB(g16,p)\n" 100
+v: CALLV(p) "?%I rpush.sp\n%0%Lcall\n" 1
+v: CALLV(g16) "?%I rpush.sp\n%Icall%T%0\n" 0
+
+f: INDIRF4(p) "%0%Lload.32" 1
+f: INDIRF8(p) "%0%Lload.64" 1
+i: INDIRI1(p) "%0%Lload.s8" 1
+i: INDIRI2(p) "%0%Lload.16" 1
+i: INDIRI4(p) "%0%Lload.32" 1
+p: INDIRP2(p) "%0%Lload.16" 1
+u: INDIRU1(p) "%0%Lload.u8" 1
+u: INDIRU2(p) "%0%Lload.16" 1
+u: INDIRU4(p) "%0%Lload.32" 1
+
+
+
+
+f: INDIRF4(ADDP2(p, conS8)) "%0%Lload.32%Ttos[%1]" splitCost(2, 1)
+f: INDIRF8(ADDP2(p, conS8)) "%0%Lload.64%Ttos[%1]" splitCost(2, 1)
+i: INDIRI1(ADDP2(p, conS8)) "%0%Lload.s8%Ttos[%1]" splitCost(2, 1)
+i: INDIRI2(ADDP2(p, conS8)) "%0%Lload.16%Ttos[%1]" splitCost(2, 1)
+i: INDIRI4(ADDP2(p, conS8)) "%0%Lload.32%Ttos[%1]" splitCost(2, 1)
+p: INDIRP2(ADDP2(p, conS8)) "%0%Lload.16%Ttos[%1]" splitCost(2, 1)
+u: INDIRU1(ADDP2(p, conS8)) "%0%Lload.u8%Ttos[%1]" splitCost(2, 1)
+u: INDIRU2(ADDP2(p, conS8)) "%0%Lload.16%Ttos[%1]" splitCost(2, 1)
+u: INDIRU4(ADDP2(p, conS8)) "%0%Lload.32%Ttos[%1]" splitCost(2, 1)
+
+f: INDIRF4(ADDP2(p, conS16)) "%0%Lload.32%Ttos[%1]" splitCost(3, 1)
+f: INDIRF8(ADDP2(p, conS16)) "%0%Lload.64%Ttos[%1]" splitCost(3, 1)
+i: INDIRI1(ADDP2(p, conS16)) "%0%Lload.s8%Ttos[%1]" splitCost(3, 1)
+i: INDIRI2(ADDP2(p, conS16)) "%0%Lload.16%Ttos[%1]" splitCost(3, 1)
+i: INDIRI4(ADDP2(p, conS16)) "%0%Lload.32%Ttos[%1]" splitCost(3, 1)
+p: INDIRP2(ADDP2(p, conS16)) "%0%Lload.16%Ttos[%1]" splitCost(3, 1)
+u: INDIRU1(ADDP2(p, conS16)) "%0%Lload.u8%Ttos[%1]" splitCost(3, 1)
+u: INDIRU2(ADDP2(p, conS16)) "%0%Lload.16%Ttos[%1]" splitCost(3, 1)
+u: INDIRU4(ADDP2(p, conS16)) "%0%Lload.32%Ttos[%1]" splitCost(3, 1)
+
+
+
+
+
+v: ARGB(INDIRB(p)) "?%I rpush.sp\n%0%LloadBytes%T%a\n" ifCost(argNo(a)==0, 4, 1)
+v: ARGB(INDIRB(p)) "?%I rpush.sp\n%0%LloadBytes%T%a\n" ifCost(argNo(a)!=0, 3, 1)
+
+v: ASGNB(p,INDIRB(p)) "%0\n%1%Lmemcopy%T%a\n" ifCost(inRange(a, 0, 255), 2, 1)
+v: ASGNB(p,INDIRB(p)) "%0\n%1%Lmemcopy%T%a\n" splitCost(3, 1)
+
+p: ADDRFP2 "%Ipushea%Tfp[%a]" splitCost(3, 1)
+p: ADDRLP2 "%Ipushea%Tfp[%a]" splitCost(3, 1)
+p: ADDRGP2 "%Ipushea%Tdp[%a]" splitCost(3, 1)
+
+p: ADDRFP2 "%Ipushea%Tfp[%a]" ifCost(inRange(a, -128, 127), 2, 1)
+p: ADDRLP2 "%Ipushea%Tfp[%a]" ifCost(inRange(a, -128, 127), 2, 1)
+
+
+v: JUMPV(g16) "%Ijmp%T%0\n" 10
+
+i: CVUI2(INDIRU1(p)) "%0%Lload.8 ; cv_u1_to_i2"  ifCost(cvSrcSize(a) == 1, 1, 1)
+i: CVUI2(u1) "%0 ; cv_u1_to_i2" ifCost(cvSrcSize(a) == 1, 0, 0)
+u1: CVUU1(u) "%0%Lpush.16%T0xff%Land.16 ; cv_u2_to_u1" ifCost(cvSrcSize(a) == 2, 3, 1)
+u: CVPU2(p) "%<%0%> ; cv_p2_to_u2" ifCost(cvSrcSize(a) == 2, 0, 0)
+
+g16: ADDRGP2 "%a" 0
+fp16: ADDRFP2 "%a" 0
+fp16: ADDRLP2 "%a" 0
+
+fp8: ADDRFP2 "%a" range(a, -128, 127)
+fp8: ADDRLP2 "%a" range(a, -128, 127)
+
+
+i: CVII1(i) "%0%Lswap.16 ; assumes little endian%Lpop.16 ; cv_i4_to_i1" ifCost(cvSrcSize(a) == 2, 1, 1)
+
+i: CVII2(INDIRI1(fp8)) "%Ipush.s8%Tfp[%0] ; cv_i1_i2" splitCost(2, 1)
+i: CVUI2(INDIRU1(fp8)) "%Ipush.u8%Tfp[%0] ; cv_u1_i2" splitCost(2, 1)
+i: CVUI2(INDIRU2(fp8)) "%Ipush.16%Tfp[%0] ; cv_u2_i2" splitCost(2, 1)
+i: CVUI1(INDIRU2(fp8)) "%Ipush.16%Tfp[%0] ; cv_u2_i1" splitCost(2, 1)
+
+i: CVII2(INDIRI1(fp16)) "%Ipush.s8%Tfp[%0] ; cv_i1_i2" splitCost(3, 1)
+i: CVUI2(INDIRU1(fp16)) "%Ipush.u8%Tfp[%0] ; cv_u1_i2" splitCost(3, 1)
+i: CVUI2(INDIRU2(fp16)) "%Ipush.16%Tfp[%0] ; cv_u2_i2" splitCost(3, 1)
+i: CVUI1(INDIRU2(fp16)) "%Ipush.16%Tfp[%0] ; cv_u2_i1" splitCost(3, 1)
+
+i: CVII2(INDIRI1(p)) "%0%Lload.s8 ; cv_i1_to_i2" splitCost(1, 1)
+
+i: INDIRI1(fp8) "%Ipush.s8%Tfp[%0]" splitCost(2, 1)
+u: INDIRU1(fp8) "%Ipush.u8%Tfp[%0]" splitCost(2, 1)
+i: INDIRI2(fp8) "%Ipush.16%Tfp[%0]" splitCost(2, 1)
+u: INDIRU2(fp8) "%Ipush.16%Tfp[%0]" splitCost(2, 1)
+p: INDIRP2(fp8) "%Ipush.16%Tfp[%0]" splitCost(2, 1)
+i: INDIRI4(fp8) "%Ipush.32%Tfp[%0]" splitCost(2, 1)
+u: INDIRU4(fp8) "%Ipush.32%Tfp[%0]" splitCost(2, 1)
+f: INDIRF4(fp8) "%Ipush.32%Tfp[%0]" splitCost(2, 1)
+f: INDIRF8(fp8) "%Ipush.64%Tfp[%0]" splitCost(2, 1)
+
+i: INDIRI1(fp16) "%Ipush.s8%Tfp[%0]" splitCost(3, 1)
+u: INDIRU1(fp16) "%Ipush.u8%Tfp[%0]" splitCost(3, 1)
+i: INDIRI2(fp16) "%Ipush.16%Tfp[%0]" splitCost(3, 1)
+u: INDIRU2(fp16) "%Ipush.16%Tfp[%0]" splitCost(3, 1)
+p: INDIRP2(fp16) "%Ipush.16%Tfp[%0]" splitCost(3, 1)
+i: INDIRI4(fp16) "%Ipush.32%Tfp[%0]" splitCost(3, 1)
+u: INDIRU4(fp16) "%Ipush.32%Tfp[%0]" splitCost(3, 1)
+f: INDIRF4(fp16) "%Ipush.32%Tfp[%0]" splitCost(3, 1)
+f: INDIRF8(fp16) "%Ipush.64%Tfp[%0]" splitCost(3, 1)
+
+
+i: INDIRI1(g16) "%Ipush.s8%Tdp[%0]" splitCost(3, 1)
+u: INDIRU1(g16) "%Ipush.u8%Tdp[%0]" splitCost(3, 1)
+i: INDIRI2(g16) "%Ipush.16%Tdp[%0]" splitCost(3, 1)
+u: INDIRU2(g16) "%Ipush.16%Tdp[%0]" splitCost(3, 1)
+p: INDIRP2(g16) "%Ipush.16%Tdp[%0]" splitCost(3, 1)
+i: INDIRI4(g16) "%Ipush.32%Tdp[%0]" splitCost(3, 1)
+u: INDIRU4(g16) "%Ipush.32%Tdp[%0]" splitCost(3, 1)
+f: INDIRF4(g16) "%Ipush.32%Tdp[%0]" splitCost(3, 1)
+f: INDIRF8(g16) "%Ipush.64%Tdp[%0]" splitCost(3, 1)
+
+v: ASGNI1(fp8,i) "%1%Lstore.s8%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNU1(fp8,u) "%1%Lstore.u8%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNI2(fp8,i) "%1%Lstore.16%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNU2(fp8,u) "%1%Lstore.16%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNP2(fp8,p) "%1%Lstore.16%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNI4(fp8,i) "%1%Lstore.32%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNU4(fp8,u) "%1%Lstore.32%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNF4(fp8,f) "%1%Lstore.32%Tfp[%0]\n" splitCost(2, 1)
+v: ASGNF8(fp8,f) "%1%Lstore.64%Tfp[%0]\n" splitCost(2, 1)
+
+v: ASGNI1(fp16,i) "%1%Lstore.s8%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNU1(fp16,u) "%1%Lstore.u8%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNI2(fp16,i) "%1%Lstore.16%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNU2(fp16,u) "%1%Lstore.16%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNP2(fp16,p) "%1%Lstore.16%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNI4(fp16,i) "%1%Lstore.32%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNU4(fp16,u) "%1%Lstore.32%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNF4(fp16,f) "%1%Lstore.32%Tfp[%0]\n" splitCost(3, 1)
+v: ASGNF8(fp16,f) "%1%Lstore.64%Tfp[%0]\n" splitCost(3, 1)
+
+v: ASGNI1(g16,i) "%1%Lstore.s8%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNU1(g16,u) "%1%Lstore.u8%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNI2(g16,i) "%1%Lstore.16%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNU2(g16,u) "%1%Lstore.16%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNP2(g16,p) "%1%Lstore.16%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNI4(g16,i) "%1%Lstore.32%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNU4(g16,u) "%1%Lstore.32%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNF4(g16,f) "%1%Lstore.32%Tdp[%0]\n" splitCost(3, 1)
+v: ASGNF8(g16,f) "%1%Lstore.64%Tdp[%0]\n" splitCost(3, 1)
+
+i: INDIRI1(INDIRP2(fp8)) "%Ipush.s8%T*fp[%0]" splitCost(2, 1)
+u: INDIRU1(INDIRP2(fp8)) "%Ipush.u8%T*fp[%0]" splitCost(2, 1)
+i: INDIRI2(INDIRP2(fp8)) "%Ipush.16%T*fp[%0]" splitCost(2, 1)
+u: INDIRU2(INDIRP2(fp8)) "%Ipush.16%T*fp[%0]" splitCost(2, 1)
+p: INDIRP2(INDIRP2(fp8)) "%Ipush.16%T*fp[%0]" splitCost(2, 1)
+i: INDIRI4(INDIRP2(fp8)) "%Ipush.32%T*fp[%0]" splitCost(2, 1)
+u: INDIRU4(INDIRP2(fp8)) "%Ipush.32%T*fp[%0]" splitCost(2, 1)
+f: INDIRF4(INDIRP2(fp8)) "%Ipush.32%T*fp[%0]" splitCost(2, 1)
+f: INDIRF8(INDIRP2(fp8)) "%Ipush.64%T*fp[%0]" splitCost(2, 1)
+
+i: INDIRI1(INDIRP2(fp16)) "%Ipush.s8%T*fp[%0]" splitCost(3, 1)
+u: INDIRU1(INDIRP2(fp16)) "%Ipush.u8%T*fp[%0]" splitCost(3, 1)
+i: INDIRI2(INDIRP2(fp16)) "%Ipush.16%T*fp[%0]" splitCost(3, 1)
+u: INDIRU2(INDIRP2(fp16)) "%Ipush.16%T*fp[%0]" splitCost(3, 1)
+p: INDIRP2(INDIRP2(fp16)) "%Ipush.16%T*fp[%0]" splitCost(3, 1)
+i: INDIRI4(INDIRP2(fp16)) "%Ipush.32%T*fp[%0]" splitCost(3, 1)
+u: INDIRU4(INDIRP2(fp16)) "%Ipush.32%T*fp[%0]" splitCost(3, 1)
+f: INDIRF4(INDIRP2(fp16)) "%Ipush.32%T*fp[%0]" splitCost(3, 1)
+f: INDIRF8(INDIRP2(fp16)) "%Ipush.64%T*fp[%0]" splitCost(3, 1)
+
+
+v: ASGNI1(fp8,INDIRI1(fp8)) "%Icopy.s8%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNU1(fp8,INDIRU1(fp8)) "%Icopy.u8%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNI2(fp8,INDIRI2(fp8)) "%Icopy.16%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNU2(fp8,INDIRU2(fp8)) "%Icopy.16%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNP2(fp8,INDIRP2(fp8)) "%Icopy.16%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNI4(fp8,INDIRI4(fp8)) "%Icopy.32%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNU4(fp8,INDIRU4(fp8)) "%Icopy.32%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNF4(fp8,INDIRF4(fp8)) "%Icopy.32%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+v: ASGNF8(fp8,INDIRF8(fp8)) "%Icopy.64%Tfp[%0], fp[%1]\n" splitCost(3, 1)
+
+
+v: ASGNI1(INDIRP2(fp16),i) "%1%Lstore.s8%T*fp[%0]\n" 1
+v: ASGNI2(INDIRP2(fp16),i) "%1%Lstore.16%T*fp[%0]\n" 1
 %%
-
-static void emitSymbol(Symbol p, const char *qualifier) {
-  switch (p->scope) {
-    case CONSTANTS:
-      print("%I.info CONSTANTS", indent);
-      break;
-    case LABELS:
-      print("%I.info LABELS", indent);
-      break;
-    case GLOBAL:
-      print("%I.info GLOBAL", indent);
-      break;
-    case PARAM:
-      print("%I.info PARAM", indent);
-      break;
-    case LOCAL:
-      print("%I.info %s", indent, p->temporary ? "TEMP" : "LOCAL");
-      break;
-    default:
-      if (p->scope > LOCAL)
-        print("%I.info %s+%d", indent, p->temporary ? "TEMP" : "LOCAL",
-              p->scope - LOCAL);
-      else
-        print("%I.indo SCOPE_%d", indent, p->scope);
-  }
-  if (*qualifier) print("_%s", qualifier);
-  /*if (verbose && (src.y || src.x)) emitCoord(p->src);*/
-  print(" name=%s", p->name);
-  print(" type=%t", p->type);
-  print(" sclass=%k", p->sclass);
-  print(" size=%d", p->type->size);
-  print(" flags=");
-  {
-    int n = 0;
-#define yy(f)            \
-  if (p->f) {            \
-    if (n++) print("|"); \
-    print(#f);           \
-  }
-    // clang-format off
-    yy(structarg)
-    yy(addressed)
-    yy(computed)
-    yy(temporary)
-    yy(generated)
-    if (n == 0) print("none");
-    // clang-format on
-#undef yy
-  }
-  if (p->scope >= PARAM && p->sclass != STATIC) {
-    print(" offset=%d", p->x.offset);
-  }
-  print(" ref=%f", p->ref);
-  if (p->temporary && p->u.t.cse) {
-    #if(0)
-    print(" u.t.cse=%p", p->u.t.cse); // the Node that calculates the temporary
-    #endif
-  }
-  print("\n");
-}
-
-static void I(segment)(int n) {
-  if (cseg != n) switch (cseg = n) {
-      case CODE:
-        print("\n.code\n");
-        return;
-      case DATA:
-        print("\n.data\n");
-        return;
-      case BSS:
-        print("\n.bss\n");
-        return;
-      case LIT:
-        print("\n.lit\n");
-        return;
-      default:
-        assert(0 && "unknown segment");
-    }
-}
-
-
-static void dumpPackedTree(Node p) {
-  switch (specific(p->op)) {
-    case ASGN + B:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-      assert(p->syms[0]);
-      indent++;
-      dumpPackedTree(p->kids[0]);
-      dumpPackedTree(p->kids[1]);
-      indent--;
-      print("%s.", opname(p->op));
-      return;
-    case RET + V:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      print("%s.", opname(p->op));
-      return;
-  }
-  switch (generic(p->op)) {
-    case CNST:
-    case ADDRG:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0] && p->syms[0]->x.name);
-      print("%s.", opname(p->op));
-      return;
-    case ADDRF:
-    case ADDRL:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0] && p->syms[0]->x.name);
-      print("%s.", opname(p->op));
-      return;
-    case LABEL:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0] && p->syms[0]->x.name);
-      print("%s:", p->syms[0]->x.name);
-      return;
-    case CVF:
-    case CVI:
-    case CVP:
-    case CVU:
-      assert(p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0]);
-      indent++;
-      dumpPackedTree(p->kids[0]);
-      indent--;
-      {
-        const char *op = opname(p->op);
-        int srcSize = p->syms[0]->u.c.v.i;
-        assert(strlen(op) == 5 && "Expected opname for CVx to be 5 long");
-        print("%S%d%s.", op, 3, srcSize, op + 3);
-      }
-      return;
-    case ARG:
-      assert(p->kids[0]);
-      assert(!p->kids[1]);
-      indent++;
-      dumpPackedTree(p->kids[0]);
-      indent--;
-      int argSize = roundup(p->syms[0]->u.c.v.i, 2) / 2;
-      callArgCells += argSize;
-      return;
-    case BCOM:
-    case NEG:
-    case INDIR:
-    case JUMP:
-    case RET:
-      assert(p->kids[0]);
-      assert(!p->kids[1]);
-      indent++;
-      dumpPackedTree(p->kids[0]);
-      indent--;
-      print("%s.", opname(p->op));
-      return;
-    case CALL:
-      assert(p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0]);
-      assert(optype(p->op) != B);
-      if (generic(p->kids[0]->op) == ADDRG) {
-        // compile time calls simply only need the
-        // address of the target in thread
-        Node q = p->kids[0];
-        assert(q->syms[0] && q->syms[0]->x.name);
-        if (variadic(p->syms[0]->type))
-          print("%I%s %d\n", indent, q->syms[0]->x.name, callArgCells);
-        else
-          print("%I%s\n", indent, q->syms[0]->x.name);
-      } else {
-        // Other calls, through a function pointer need to push
-        // the address on the stack and do an indirect call
-        indent++;
-        dumpPackedTree(p->kids[0]);
-        indent--;
-        print("%s.", opname(p->op));
-      }
-      callArgCells = 0;
-      return;
-    case ASGN:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-
-      indent++;
-      dumpPackedTree(p->kids[0]);
-      dumpPackedTree(p->kids[1]);
-      indent--;
-      print("%s.", opname(p->op));
-      return;
-    case BOR:
-    case BAND:
-    case BXOR:
-    case RSH:
-    case LSH:
-    case ADD:
-    case SUB:
-    case DIV:
-    case MUL:
-    case MOD:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-      indent++;
-      dumpPackedTree(p->kids[0]);
-      dumpPackedTree(p->kids[1]);
-      indent--;
-      print("%s.", opname(p->op));
-      return;
-    case EQ:
-    case NE:
-    case GT:
-    case GE:
-    case LE:
-    case LT:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-      assert(p->syms[0]);
-      assert(p->syms[0]->x.name);
-      indent++;
-      dumpPackedTree(p->kids[0]);
-      dumpPackedTree(p->kids[1]);
-      indent--;
-      print("%s.", opname(p->op));
-      return;
-  }
-  assert(0);
-}
-
-static void dumptree(Node p) {
-  switch (specific(p->op)) {
-    case ASGN + B:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-      assert(p->syms[0]);
-      indent++;
-      dumptree(p->kids[0]);
-      dumptree(p->kids[1]);
-      indent--;
-      print("%I%s %d\n", indent, opname(p->op), p->syms[0]->u.c.v.u);
-      return;
-    case RET + V:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      print("%I%s\n", indent, opname(p->op));
-      return;
-  }
-  switch (generic(p->op)) {
-    case CNST:
-    case ADDRG:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0] && p->syms[0]->x.name);
-      print("%I%s %s // offset=%d\n", indent, opname(p->op), p->syms[0]->x.name,
-            p->syms[0]->x.offset);
-      return;
-    case ADDRF:
-    case ADDRL:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0] && p->syms[0]->x.name);
-      print("%I%s %d // name=%s\n", indent, opname(p->op), p->syms[0]->x.offset,
-            p->syms[0]->x.name);
-      return;
-    case LABEL:
-      assert(!p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0] && p->syms[0]->x.name);
-      print("%ILABEL %s: // offset=%d\n", indent, p->syms[0]->x.name,
-            p->syms[0]->x.offset);
-      return;
-    case CVF:
-    case CVI:
-    case CVP:
-    case CVU:
-      assert(p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0]);
-      indent++;
-      dumptree(p->kids[0]);
-      indent--;
-      {
-        const char *op = opname(p->op);
-        int srcSize = p->syms[0]->u.c.v.i;
-        assert(strlen(op) == 5 && "Expected opname for CVx to be 5 long");
-        print("%I%S%d%s\n", indent, op, 3, srcSize, op + 3);
-      }
-      return;
-    case ARG:
-    case BCOM:
-    case NEG:
-    case INDIR:
-    case JUMP:
-    case RET:
-      assert(p->kids[0]);
-      assert(!p->kids[1]);
-      indent++;
-      dumptree(p->kids[0]);
-      indent--;
-      print("%I%s\n", indent, opname(p->op));
-      if (generic(p->op) == ARG) {
-        int argSize = roundup(p->syms[0]->u.c.v.i, 2) / 2;
-        callArgCells += argSize;
-      }
-      return;
-    case CALL:
-      assert(p->kids[0]);
-      assert(!p->kids[1]);
-      assert(p->syms[0]);
-      assert(optype(p->op) != B);
-      if (0 && generic(p->kids[0]->op) == ADDRG) {
-        // compile time calls simply only need the
-        // address of the target in thread
-        Node q = p->kids[0];
-        assert(q->syms[0] && q->syms[0]->x.name);
-        print("%I%s", indent, q->syms[0]->x.name);
-      } else {
-        // Other calls, through a function pointer need to push
-        // the address on the stack and do an indirect call
-        indent++;
-        dumptree(p->kids[0]);
-        indent--;
-        print("%I%s", indent, opname(p->op));
-      }
-      if (variadic(p->syms[0]->type))
-        print(" %d // variadic call\n", callArgCells);
-      else
-        print("\n");
-      callArgCells = 0;
-      return;
-    case ASGN:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-
-      indent++;
-      dumptree(p->kids[0]);
-      dumptree(p->kids[1]);
-      indent--;
-      print("%I%s\n", indent, opname(p->op));
-      return;
-    case BOR:
-    case BAND:
-    case BXOR:
-    case RSH:
-    case LSH:
-    case ADD:
-    case SUB:
-    case DIV:
-    case MUL:
-    case MOD:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-      indent++;
-      dumptree(p->kids[0]);
-      dumptree(p->kids[1]);
-      indent--;
-      print("%I%s\n", indent, opname(p->op));
-      return;
-    case EQ:
-    case NE:
-    case GT:
-    case GE:
-    case LE:
-    case LT:
-      assert(p->kids[0]);
-      assert(p->kids[1]);
-      assert(p->syms[0]);
-      assert(p->syms[0]->x.name);
-      indent++;
-      dumptree(p->kids[0]);
-      dumptree(p->kids[1]);
-      indent--;
-      print("%I%s %s\n", indent, opname(p->op), p->syms[0]->x.name);
-      return;
-  }
-  assert(0);
-}
-
-static void I(emit)(Node p) {
-  for (; p; p = p->link) {
-    if(dumpPacked){
-    print("\n%I", indent);
-    dumpPackedTree(p);
-    } else{
-    dumptree(p);
-    }
-    if (generic(p->op) == CALL && optype(p->op) != VOID) {
-      /*credit: S. Woutersen, Building a C-based processor, December, 2005 */
-      print("%IDISCARD%s%d\n", indent, suffixes[optype(p->op)], opsize(p->op));
-    }
-  }
-}
-
-
-
-static int getrule(Node p, int nt) {
-  int rulenum=0;
-  
-  assert(p);
-  // implement the same assertion that _rule will implement on nt
-  // so that we can dump the node in error before _rule causes a
-  // a fatal error that kills the process. NELEMS(_ntname) is just
-  // a convient and reliable way to get the same upper limit that
-  // _rule uses in its assertion. In _rule, it is generated by lburg
-  if (!(nt < 1 || nt > NELEMS(_ntname)-2)) rulenum = _rule(p->x.state, nt);
-  if (!rulenum) {
-    fprint(stderr, "(%x->op=%s at %w is corrupt.)\n", p, opname(p->op), &src);
-    print("Node in error>>>\n");
-    dumptree(p);
-    print("<<<Node in error\n");
-    fflush(stdout);
-    assert(0);
-  }
-  return rulenum;
-}
-
-static void emit2(Node p) { assert(0 && "Not expected emit2 to be used"); }
-
-static unsigned emitassembly(Node p, int nt) {
-  int rulenum;
-  short *nts;
-  char *fmt;
-  Node kids[10];
-
-  rulenum = getrule(p, nt);
-  nts = _nts[rulenum];
-  fmt = _templates[rulenum];
-  assert(fmt);
-  if (_isinstruction[rulenum] && p->x.emitted)
-    print("%s", p->syms[RX]->x.name);
-  else if (*fmt == '#')
-    emit2(p);
-  else {
-    if (*fmt == '?') {
-      assert(0 && "not expected ? at start of instruction");
-      fmt++;
-      assert(p->kids[0]);
-      if (p->syms[RX] == p->x.kids[0]->syms[RX])
-        while (*fmt++ != '\n')
-        ;
-    }
-    for (_kids(p, rulenum, kids); *fmt; fmt++)
-      if (*fmt != '%')
-        (void)putchar(*fmt);
-      else if (*++fmt == 'F')
-        print("%d", framesize);
-      else if (*fmt >= '0' && *fmt <= '9'){
-        indent++;
-        emitassembly(kids[*fmt - '0'], nts[*fmt - '0']);
-        indent--;
-      }
-        else if (*fmt >= 'a' && *fmt < 'a' + NELEMS(p->syms))
-            fputs(p->syms[*fmt - 'a']->x.name, stdout);
-        else if (*fmt >= 'A' && *fmt < 'A' + NELEMS(p->syms))
-            print("%d", p->syms[*fmt - 'A']->x.offset);
-        else if (*fmt == 'L') print("\n%I", indent);
-        else if (*fmt == 'I') print("%I", indent);
-        else(void) putchar(*fmt);
-    }
-    return 0;
-}
-
-static void I(emitBurg)(Node p) {
-  for (; p; p = p->x.next) {
-#if(0)
-    assert(p->x.registered);
-#endif
-    emitassembly(p, p->x.inst);
-    p->x.emitted = 1;
-  }
-}
-
-
-static void gen02(Node p) {
-  assert(p);
-  if (generic(p->op) == ARG) {
-    assert(p->syms[0]);
-    argoffset += (p->syms[0]->u.c.v.i < 4 ? 4 : p->syms[0]->u.c.v.i);
-  } else if (generic(p->op) == CALL) {
-    maxargoffset = (argoffset > maxargoffset ? argoffset : maxargoffset);
-    argoffset = 0;
-  }
-}
-
-static void gen01(Node p) {
-  if (p) {
-    gen01(p->kids[0]);
-    gen01(p->kids[1]);
-    gen02(p);
-  }
-}
-
-
-static void reduce(Node p, int nt) {
-	int rulenum, i;
-	short *nts;
-	Node kids[10];
-
-	rulenum = getrule(p, nt);
-	nts = _nts[rulenum];
-	_kids(p, rulenum, kids);
-	for (i = 0; nts[i]; i++)
-		reduce(kids[i], nts[i]);
-	if (_isinstruction[rulenum]) {
-		assert(p->x.inst == 0 || p->x.inst == nt);
-		p->x.inst = nt;
-		if (p->syms[RX] && p->syms[RX]->temporary) {
-			debug(fprint(stderr, "(using %s)\n", p->syms[RX]->name));
-			p->syms[RX]->x.usecount++;
-		}
-	}
-}
-
-static Node *prune(Node p, Node pp[]) {
-	if (p == NULL)
-		return pp;
-	p->x.kids[0] = p->x.kids[1] = p->x.kids[2] = NULL;
-	if (p->x.inst == 0)
-		return prune(p->kids[1], prune(p->kids[0], pp));
-	else {
-		prune(p->kids[1], prune(p->kids[0], &p->x.kids[0]));
-		*pp = p;
-		return pp + 1;
-	}
-}
-
-static void linearize(Node p, Node next) {
-	int i;
-
-	for (i = 0; i < NELEMS(p->x.kids) && p->x.kids[i]; i++)
-		linearize(p->x.kids[i], next);
-	relink(next->x.prev, p);
-	relink(p, next);
-	debug(fprint(stderr, "(listing %x)\n", p));
-}
-
-
-static Node I(gen)(Node p) {
-  Node q;
-  Node dummy;
-  struct node sentinel;
-
-
-  assert(p);
-  for (q = p; q; q = q->link) {
-    gen01(q);
-   _label(q);
-   reduce(q, 1);
-  }
-  for (q = p; q; q = q->link) {
-    prune(p, &dummy);
-  }
-
-  relink(&sentinel, &sentinel);
-  for (q = p; q; q = q->link){
-    linearize(q, &sentinel);
-  }
-  p = sentinel.x.next;
-  assert(p);
-  sentinel.x.next->x.prev = NULL;
-  sentinel.x.prev->x.next = NULL;
-
-
-  return p;
-}
-
-static void I(progbeg)(int argc, char *argv[]) {
-  {
-    union {
-      char c;
-      int i;
-    } u;
-    u.i = 0;
-    u.c = 1;
-    swap = ((int)(u.i == 1)) != IR->little_endian;
-  }
-  indent = 0;
-  print("; Split16/std Assembly generated by LCC4.2\n");
-}
-
-static void I(progend)(void) {}
-
-static void I(local)(Symbol p) {
-  offset = roundup(offset, p->type->align);
-  p->x.name = p->name;
-  p->x.offset = offset;
-  offset += p->type->size;
-  emitSymbol(p, "");
-}
-
-static void I(function)(Symbol f, Symbol caller[], Symbol callee[],
-                        int ncalls) {
-  int i;
-  int cellInCnt = 0;
-  (*IR->segment)(CODE);
-  print("%I%s %s: {\n", ++indent, f->sclass != STATIC ? ".export" : "", f->x.name);
-  if (!hasproto(f->type)) print("%I.info NoPrototype\n", indent);
-  offset = 0;
-  for (i = 0; caller[i] && callee[i]; i++) {
-    caller[i]->x.name = callee[i]->x.name = caller[i]->name;
-    caller[i]->x.offset = callee[i]->x.offset = offset;
-    caller[i]->sclass = callee[i]->sclass = AUTO;
-    offset += roundup(caller[i]->type->size, 2);
-  }
-  cellInCnt = offset / 2;
-  maxargoffset = maxoffset = argoffset = offset = 0;
-  gencode(caller, callee);
-  print("%I.info maxoffset=%d maxargoffset=%d isVariadc=%s\n", indent, maxoffset,
-        maxargoffset, variadic(f->type) ? "yes" : "no");
-  // now we know how much local and temp space is used, adjust
-  // the parameter offsets as they sit above the locals & temps
-  for (i = 0; callee[i]; i++) {
-    callee[i]->x.offset += maxoffset;
-    emitSymbol(caller[i], "caller");
-    emitSymbol(callee[i], "callee");
-  }
-
-  // emit prolog
-  // Calls to variadic functions are followed by a count in the
-  // the thread of the number of cells passed, push this to the
-  // stack before we enter
-  if (variadic(f->type)) {
-    print("%Iimm_ir // variadic cell count\n", indent);
-    print("%Ienter\n", indent);
-  } else {
-    if (cellInCnt) {
-      print("%Ienter$ %d\n", indent, cellInCnt);
-    } else {
-      print("%Ienter\n", indent);
-    }
-  }
-  print("%I.{\n", indent);
-  indent += 2;
-  if ((cellInCnt || variadic(f->type)) && maxoffset) {
-    print("%Iunpack.Using@ %d\n", indent, maxoffset);
-  } else if (cellInCnt || variadic(f->type)) {
-    print("%Iunpack\n", indent);
-  } else if (maxoffset) {
-    print("%Iusing@ %d\n", indent, maxoffset);
-  }
-
-  callArgCells = 0;
-  emitcode();
-  print("\n");
-
-  // emit epilog.
-  // if the prolog was "enter" then "exit_next" has nothing to clear up
-  // otherwise, leave clears up the s/w stack using info left by the prolog
-  // TODO: how or where do we put info for leave
-  if (cellInCnt || variadic(f->type) || maxoffset)
-    print("%Ileave\n", indent);
-  else
-    print("%IEXIT_NXT\n", indent);
-  indent -= 2;
-  print("%I.}\n", indent);
-  print("%I}\n", --indent);
-}
-
-static void I(defsymbol)(Symbol p) {
-  if (p->scope >= LOCAL && p->sclass == STATIC)
-    p->x.name = stringf("L_%d", genlabel(1));
-  else if (p->generated)
-    p->x.name = stringf("L_%s", p->name);
-  else if (p->scope == GLOBAL || p->sclass == EXTERN)
-    p->x.name = stringf("_%s", p->name);
-  else
-    p->x.name = p->name;
-}
-
-static void I(address)(Symbol q, Symbol p, long n) {
-  if (p->scope == GLOBAL || p->sclass == STATIC || p->sclass == EXTERN)
-    q->x.name = stringf("%s%s%D", p->x.name, n >= 0 ? "+" : "", n);
-  else {
-    assert(n <= INT_MAX && n >= INT_MIN);
-    q->x.offset = p->x.offset + n;
-    q->x.name = stringd(q->x.offset);
-  }
-}
-
-static void I(defconst)(int suffix, int size, Value v) {
-  if (suffix == I && size == 1)
-    print("%I.def1b 0x%X\n", indent, v.i & 0xff);
-  else if (suffix == I && size == 2)
-    print("%I.def2b 0x%X\n", indent, v.i & 0xffff);
-  else if (suffix == I && size == 4)
-    print("%I.def4b 0x%X\n", indent, v.i & 0xffffffff);
-  else if (suffix == U && size == 1)
-    print("%I.def1b 0x%X\n", indent, v.u & 0xff);
-  else if (suffix == U && size == 2)
-    print("%I.def2b 0x%X\n", indent, v.u & 0xffff);
-  else if (suffix == U && size == 4)
-    print("%I.def4b 0x%X\n", indent, v.u & 0xffffffff);
-  else if (suffix == P && size == 2)
-    print("%I.def2b 0x%X\n", indent, ((unsigned)v.p) & 0xffff);
-  else if (suffix == F && size == 4) {
-    float f = v.d;
-    print(".def4b 0x%X\n", (*(unsigned *)&f) & 0xffffffff);
-  } else if (suffix == F && size == 8) {
-    double d = v.d;
-    unsigned *p = (unsigned *)&d;
-    print("%I.def8b 0x%X\n.def4b 0x%X\n", indent, p[swap] & 0xffffffff,
-          p[!swap] & 0xffffffff);
-  } else
-    assert(0);
-}
-
-static void I(defaddress)(Symbol p) { print(".def2b %s\n", p->x.name); }
-
-static void I(defstring)(int len, char *str) {
-  char *s;
-  for (s = str; s < str + len; s++) print(".def1b %d\n", (*s) & 0xFF);
-}
-
-static void I(export)(Symbol p) {
-  if (p->scope != GLOBAL)
-    print("%I.export %s //TODO: not expecting to emit this\n", indent,
-          p->x.name);
-}
-
-static void I(import)(Symbol p) { print("%I.extern %s\n", indent, p->x.name); }
-
-static void I(global)(Symbol p) {
-  assert(p->type->align == 1 || p->type->align == 2 && "unexpected alignment");
-  print(".align %d\n", p->type->align);
-  if (p->sclass != STATIC) print(".export ");
-  print("%s:\n", p->x.name);
-  if (p->u.seg == BSS) print("	.defs %d\n", p->type->size);
-}
-
-static void I(space)(int n) {
-  if (cseg != BSS)
-    print("%I.skip %d\n", indent, n);
-  else
-    print("%I.info nospace for BSS segment\n", indent);
-}
-
-static void I(stabline)(Coordinate *cp) {
-  static char *prevfile;
-  static int prevline;
-
-  if (cp->file && (prevfile == NULL || strcmp(prevfile, cp->file) != 0)) {
-    print("file \"%s\"\n", prevfile = cp->file);
-    prevline = 0;
-  }
-  if (cp->y != prevline) print("line %d\n", prevline = cp->y);
-}
-
-#define split16_blockbeg blockbeg
-#define split16_blockend blockend
-
-// clang-format off
-Interface split16IR = {
-    /* size, align, outofline */
-    1, 1, 0, /* char */
-    2, 2, 0, /* short */
-    2, 2, 0, /* int */
-    4, 2, 0, /* long */
-    4, 2, 0, /* long long */
-    4, 2, 1, /* float */
-    8, 2, 1, /* double */
-    8, 2, 0, /* long double */
-    2, 2, 0, /* T* */
-    0, 2, 0, /* struct */
-    0, /* little_endian */
-    0, /* mulops_calls */
-    0, /* wants_callb */
-    0, /* wants_argb */
-    0, /* left_to_right */
-    0, /* wants_dag */
-    0, /* unsigned_char */
-    I(address),
-    I(blockbeg),
-    I(blockend),
-    I(defaddress),
-    I(defconst),
-    I(defstring),
-    I(defsymbol),
-    I(emitBurg),
-    I(export),
-    I(function),
-    I(gen),
-    I(global),
-    I(import),
-    I(local),
-    I(progbeg),
-    I(progend),
-    I(segment),
-    I(space),
-    0, /* I(stabblock) */
-    0, /* I(stabend) */
-    0, /* I(stabfend) */
-    0, /* I(stabinit) */
-    I(stabline),
-    0, /* I(stabsym) */
-    0, /* I(stabtype) */
-};
-// clang-format on
+#include "split16.md.post.c"

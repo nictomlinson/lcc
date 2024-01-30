@@ -1,3 +1,4 @@
+
 int y;
 int *addrOfY;
 int *addr2OfY;
@@ -28,9 +29,34 @@ typedef struct {
   char c;
 } byte;
 
+byte aByte;
+
 void doNothing() {}
 void (*doNothingFptr)(void) = doNothing;
 void callThroughFunctionPointer() { doNothingFptr(); }
+
+void (*Fptrs[2])(void);
+void callThroughFunctionPointers() { Fptrs[1](); }
+
+void charLocal() { char c = 1; }
+int addCharAndInt(){char c = 1;
+  int i = 64;
+  return i + c;
+}
+
+char bigOffset(char *s) { return s[65280U]; }
+
+int doNothingi2() { return 0; }
+int (*doNothingi2Fptr)(void) = doNothingi2;
+void callThroughFunctionPointeri2() { doNothingi2Fptr(); }
+
+char byteC() { return aByte.c; }
+char localByteC() {
+  char s[10];
+  byte b;
+
+  return b.c;
+}
 
 void negate() { i1 = -i2; }
 static void staticFunction(void) {}
@@ -64,7 +90,7 @@ unsigned short unsignedShortFromFloat;
 unsigned int unsignedIntFromFloat;
 int intFromFloat;
 void floatTouUsignedChar(float f) { unsignedCharFromFloat = f; }
-void floatToUnsignedShort(float f) { unsignedShortFromFloat = f; }
+void floatToUnsignedShort(float f) { unsignedShortFromFloat = (unsigned short)f; }
 void floatToUnsignedInt(float f) { unsignedIntFromFloat = f; }
 void floatToInt(float f) { intFromFloat = f; }
 unsigned int i2ToU2(int i) { return i; }
@@ -87,6 +113,34 @@ void i2ToI4() {
   l = i;
 }
 
+extern signed char cv_i2_to_i1_char;
+extern int cv_i2_to_i1_int;
+
+void do_cv_i2_to_u2() { int a;
+  unsigned int b = a;
+}
+
+void do_cv_i2_to_i1() {
+  int i;
+  signed char c=i;
+}
+
+void do_cv_u1_to_i2() { unsigned char c;
+  int b = c;
+}
+
+void do_cv_i4_to_i1() { long l;
+  signed char c = l;
+}
+
+void do_cv_u2_to_i2() { unsigned int a;
+  int b = a;
+}
+
+void signedIntToUnsignedInt() { int a = 5;
+  unsigned int b;
+  b = a;
+}
 void allConversions() {
   char c;
   unsigned char uc;
@@ -101,6 +155,7 @@ void allConversions() {
   double d;
   void *p;
 
+
   c = c;
   c = uc;
   c = sc;
@@ -112,8 +167,8 @@ void allConversions() {
   c = ul;
   c = f;
   c = d;
-  /*c = (char)p;*/
 
+  /*c = (char)p;*/
   uc = c;
   uc = uc;
   uc = sc;
@@ -268,8 +323,8 @@ void allConversions() {
   /*p = (void *)f;*/
   /*p = (void *)d;*/
   p = (void *)p;
-}
 
+}
 void assignToIPlusPlus(int *intArray, int i) { intArray[i++] = i; }
 
 void doSwitch(int i) {
@@ -308,12 +363,18 @@ void doSwitch(int i) {
   }
 }
 
+
 byte adder() {
   byte b;
   b.c = 'a';
   return b;
 }
 
+void returnvoid() { return; }
+
+int wrongReturn() { long a;
+  return a;
+}
 typedef struct {
   int c;
   int b;
@@ -335,22 +396,33 @@ myStruct returnStruct() {
   return x;
 }
 
-void variadicFunction(int n, ...) {}
-void doCall() { doNothing(); }
+/*void variadicFunction(int n, ...) {}
 void doVariadicCall() { variadicFunction(4, 3, 2, 1, 5); }
+*/
+void doCall() { doNothing(); }
 void defaultIntPromotion(char x) {}
 void defaultFloatPromotion(x) float x;
 {}
+
+struct big {
+  char c[2047];
+};
+struct big functionWithBigStruct(struct big b) { return b; }
+struct tiny {
+  char c;
+};
+struct tiny functionWithTinyStruct(struct tiny e) { return e; }
 
 extern int extFunc(intStruct strct);
 
 static void func() {
   intStruct strt;
   intStruct *strtPtr;
-  int x;
+  int x=23;
   strt.x[0] = 2;
   strtPtr = &strt;
   strtPtr->c = 5;
+  strtPtr->b = 5;
   x = extFunc(*strtPtr);
   extFunc(*strtPtr);
 }
@@ -383,6 +455,12 @@ static struct {
 } someStruct = {'a', 15};
 static const char a_char_literal[] = "hello world";
 
+void ignoreReturnedStruct() { extGetStruct(1, 2); }
+
+float constantFloat() { return 23.5; }
+
+int useArgB(myStruct s) { return s.a; }
+int *intPointer;
 static int aFunction(float f1, float f2, unsigned int t) {
   myStruct strct = {5, 4, 3, 'f'};
   myStruct *strctPtr;
@@ -392,8 +470,9 @@ static int aFunction(float f1, float f2, unsigned int t) {
   unsigned int (*ptrToAddSeven)(char a, int s, short i, float f, myStruct strc,
                                 char *iptr);
   signed char c;
+  x = 57;
 
-  c = __admStdIntrinsic_SomRandomIntrinsic(15, 115);
+  c = __admStdIntrinsic_SomRandomIntrinsic(*intPointer, 115);
 
   useShort(*cPtr);
   doPerson(&ftype, &person);
@@ -436,7 +515,7 @@ void add9ToY(int t, int q) {
 }
 
 int simpleCallingFunc(int x, int y, int z) {
-  add9ToY(y, x);
+  add9ToY(17, 19);
   return z + 3;
 }
 
@@ -444,6 +523,11 @@ int doReturn() {
   int x;
   x = 7;
   return x;
+}
+
+void unsignedShiftRight() {
+  unsigned int i = 7;
+  i = i >> 1;
 }
 
 void branch() {
@@ -458,3 +542,9 @@ void branch() {
 void callee();
 void caller(void) { callee("wrong arg"); }
 void callee() {}
+
+void copyBytes(char *src, char *dst, int cnt) {
+  for (; cnt>0; cnt--) {
+    *dst++ = *src++;
+  }
+}

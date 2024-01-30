@@ -118,7 +118,7 @@ $Bx86$O:	$Bx86.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86.c
 $Bx86linux$O:	$Bx86linux.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86linux.c
 $Bm1$O:	$Bm1.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bm1.c
 $BadamStd$O:	$BadamStd.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $BadamStd.c
-$Bsplit16$O:	$Bsplit16.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bsplit16.c
+$Bsplit16$O:	$Bsplit16.c src/split16.md.pre.c src/split16.md.post.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bsplit16.c
 
 $Bdagcheck.c:	$Blburg$E src/dagcheck.md; $Blburg src/dagcheck.md $@
 $Balpha.c:	$Blburg$E src/alpha.md;    $Blburg src/alpha.md    $@
