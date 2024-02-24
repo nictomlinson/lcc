@@ -177,7 +177,7 @@ $Bunix$O:	cpp/unix.c;	$(CC) $(CFLAGS) -c -Icpp -o $@ cpp/unix.c
 
 # TODO: Get a make target that will compile all the tests and samples to assembler for all LCC target architectures
 TRIVIAL: $Bsample/x86/linux/trivial.s \
-		$Bsample/m1/magic1/trivial.s \
+		$Bsample/bytecode/trivial.s \
 		$Bsample/alpha/osf/trivial.s \
 		$Bsample/mips/irix/trivial.s \
 		$Bsample/sparc/sun/trivial.s \
@@ -187,10 +187,10 @@ TRIVIAL: $Bsample/x86/linux/trivial.s \
 		$Bsample/symbolic/irix/trivial.s \
 		$Bsample/symbolic/trivial.html \
 		$Bsample/symbolic/trivial.txt \
-		$Bsample/bytecode/trivial.s \
 		$Bsample/adam/std/trivial.s \
 		$Bsample/split16/forth/trivial.s \
-		$Bsample/split16/std/trivial.s
+		$Bsample/split16/std/trivial.s \
+		$Bsample/m1/magic1/trivial.s
 		
 $Bsample/adam/std/trivial.s: rcc lburg cpp lcc bprint liblcc $Bsample/adam/std tst/trivial.c
 	lcc -Wf-target=adam/std -S  -o $Bsample/adam/std/trivial.s tst/trivial.c

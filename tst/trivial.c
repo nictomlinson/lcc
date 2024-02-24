@@ -1,4 +1,4 @@
-
+#pragma xxxxx
 int y;
 int *addrOfY;
 int *addr2OfY;
@@ -11,9 +11,13 @@ short conI2_1 = 1;
 unsigned short conI2_FFFF = 0xFFFF;
 long conI4_0 = 0;
 long conI4_1 = 1;
+long long conI8 = 12345;
 unsigned long conU4_FF = 0 - 1;
 float conF4_v1 = 12345.56789e5;
 double conf8_v2 = 12345.56789e5;
+long conLong = 123456789L;
+signed char conS1 = 36;
+signed int cons2 = 726;
 
 extern unsigned char c1;
 extern unsigned short c2;
@@ -35,9 +39,11 @@ void doNothing() {}
 void (*doNothingFptr)(void) = doNothing;
 void callThroughFunctionPointer() { doNothingFptr(); }
 
+char globalOffsetAccess() { return aString[5]; }
+
 void (*Fptrs[2])(void);
 void callThroughFunctionPointers() { Fptrs[1](); }
-
+void assignDouble(double d) { d = 0.0; }
 void charLocal() { char c = 1; }
 int addCharAndInt(){char c = 1;
   int i = 64;
@@ -140,190 +146,6 @@ void do_cv_u2_to_i2() { unsigned int a;
 void signedIntToUnsignedInt() { int a = 5;
   unsigned int b;
   b = a;
-}
-void allConversions() {
-  char c;
-  unsigned char uc;
-  signed char sc;
-  short s;
-  unsigned short us;
-  int i;
-  unsigned int ui;
-  long l;
-  unsigned long ul;
-  float f;
-  double d;
-  void *p;
-
-
-  c = c;
-  c = uc;
-  c = sc;
-  c = s;
-  c = us;
-  c = i;
-  c = ui;
-  c = l;
-  c = ul;
-  c = f;
-  c = d;
-
-  /*c = (char)p;*/
-  uc = c;
-  uc = uc;
-  uc = sc;
-  uc = s;
-  uc = us;
-  uc = i;
-  uc = ui;
-  uc = l;
-  uc = ul;
-  uc = f;
-  uc = d;
-  /*uc = (unsigned char)p;*/
-
-  sc = c;
-  sc = uc;
-  sc = sc;
-  sc = s;
-  sc = us;
-  sc = i;
-  sc = ui;
-  sc = l;
-  sc = ul;
-  sc = f;
-  sc = d;
-  /*sc = (signed char)p;*/
-
-  s = c;
-  s = uc;
-  s = sc;
-  s = s;
-  s = us;
-  s = i;
-  s = ui;
-  s = l;
-  s = ul;
-  s = f;
-  s = d;
-  /*s = (short)p;*/
-
-  us = c;
-  us = uc;
-  us = sc;
-  us = s;
-  us = us;
-  us = i;
-  us = ui;
-  us = l;
-  us = ul;
-#if (0)
-  us = f;
-  us = d;
-#endif
-  /*us = (unsigned short)p;*/
-
-  i = c;
-  i = uc;
-  i = sc;
-  i = s;
-  i = us;
-  i = i;
-  i = ui;
-  i = l;
-  i = ul;
-  i = f;
-  i = d;
-#if (0)
-  i = (int)p;
-#endif
-
-  ui = c;
-  ui = uc;
-  ui = sc;
-  ui = s;
-  ui = us;
-  ui = i;
-  ui = ui;
-  ui = l;
-  ui = ul;
-  ui = f;
-  ui = d;
-#if (0)
-  ui = (unsigned int)p;
-#endif
-
-  l = c;
-  l = uc;
-  l = sc;
-  l = s;
-  l = us;
-  l = i;
-  l = ui;
-  l = l;
-  l = ul;
-  l = f;
-  l = d;
-#if (0)
-  l = (long)p;
-#endif
-
-  ul = c;
-  ul = uc;
-  ul = sc;
-  ul = s;
-  ul = us;
-  ul = i;
-  ul = ui;
-  ul = l;
-  ul = ul;
-  ul = f;
-  ul = d;
-#if (0)
-  ul = (unsigned long)p;
-#endif
-
-  f = c;
-  f = uc;
-  f = sc;
-  f = s;
-  f = us;
-  f = i;
-  f = ui;
-  f = l;
-  f = ul;
-  f = f;
-  f = d;
-  /*f = (float)p;*/
-
-  d = c;
-  d = uc;
-  d = sc;
-  d = s;
-  d = us;
-  d = i;
-  d = ui;
-  d = l;
-  d = ul;
-  d = f;
-  d = d;
-  /*d = (double)p;*/
-
-  p = (void *)c;
-  p = (void *)uc;
-  p = (void *)sc;
-  p = (void *)s;
-  p = (void *)us;
-  p = (void *)i;
-  p = (void *)ui;
-  p = (void *)l;
-#if (0) /*ignore this as it generates an error for magic1*/
-  p = (void *)ul;
-#endif
-  /*p = (void *)f;*/
-  /*p = (void *)d;*/
-  p = (void *)p;
-
 }
 void assignToIPlusPlus(int *intArray, int i) { intArray[i++] = i; }
 
@@ -548,3 +370,238 @@ void copyBytes(char *src, char *dst, int cnt) {
     *dst++ = *src++;
   }
 }
+
+void whatIsFirstArg(int a, ...) {
+  int i;
+  i = __typecode(__firstarg) == 1;
+
+}
+
+long long addI8(long long a, long long b) { return a+b; }
+
+/*
+char
+short
+int
+long
+long_long
+float
+double
+unsigned_char
+signed_char
+unsigned_short
+unsigned_int
+unsigned_long
+unsigned_long_long
+void_star_ptr
+*/
+typedef  unsigned char unsigned_char;
+typedef  signed char signed_char;
+typedef  unsigned short unsigned_short;
+typedef  unsigned int unsigned_int;
+typedef  unsigned long unsigned_long;
+typedef long long long_long;
+typedef unsigned long long unsigned_long_long;
+typedef void *void_star_ptr;
+
+#define CNV(a, b) \
+  static b cnv_##a##_to_##b(a x) { return (b)x; }
+
+CNV(char, char)
+CNV(char, short)
+CNV(char, int)
+CNV(char, long)
+CNV(char, long_long)
+CNV(char, float)
+CNV(char, double)
+CNV(char, unsigned_char)
+CNV(char, signed_char)
+CNV(char, unsigned_short)
+CNV(char, unsigned_int)
+CNV(char, unsigned_long)
+CNV(char, unsigned_long_long)
+CNV(char, void_star_ptr)
+CNV(short, char)
+CNV(short, short)
+CNV(short, int)
+CNV(short, long)
+CNV(short, long_long)
+CNV(short, float)
+CNV(short, double)
+CNV(short, unsigned_char)
+CNV(short, signed_char)
+CNV(short, unsigned_short)
+CNV(short, unsigned_int)
+CNV(short, unsigned_long)
+CNV(short, unsigned_long_long)
+CNV(short, void_star_ptr)
+CNV(int, char)
+CNV(int, short)
+CNV(int, int)
+CNV(int, long)
+CNV(int, long_long)
+CNV(int, float)
+CNV(int, double)
+CNV(int, unsigned_char)
+CNV(int, signed_char)
+CNV(int, unsigned_short)
+CNV(int, unsigned_int)
+CNV(int, unsigned_long)
+CNV(int, unsigned_long_long)
+CNV(int, void_star_ptr)
+CNV(long, char)
+CNV(long, short)
+CNV(long, int)
+CNV(long, long)
+CNV(long, long_long)
+CNV(long, float)
+CNV(long, double)
+CNV(long, unsigned_char)
+CNV(long, signed_char)
+CNV(long, unsigned_short)
+CNV(long, unsigned_int)
+CNV(long, unsigned_long)
+CNV(long, unsigned_long_long)
+CNV(long, void_star_ptr)
+CNV(long_long, char)
+CNV(long_long, short)
+CNV(long_long, int)
+CNV(long_long, long)
+CNV(long_long, long_long)
+CNV(long_long, float)
+CNV(long_long, double)
+CNV(long_long, unsigned_char)
+CNV(long_long, signed_char)
+CNV(long_long, unsigned_short)
+CNV(long_long, unsigned_int)
+CNV(long_long, unsigned_long)
+CNV(long_long, unsigned_long_long)
+CNV(long_long, void_star_ptr)
+CNV(float, char)
+CNV(float, short)
+CNV(float, int)
+CNV(float, long)
+CNV(float, long_long)
+CNV(float, float)
+CNV(float, double)
+CNV(float, unsigned_char)
+CNV(float, signed_char)
+CNV(float, unsigned_short)
+CNV(float, unsigned_int)
+CNV(float, unsigned_long)
+CNV(float, unsigned_long_long)
+CNV(double, char)
+CNV(double, short)
+CNV(double, int)
+CNV(double, long)
+CNV(double, long_long)
+CNV(double, float)
+CNV(double, double)
+CNV(double, unsigned_char)
+CNV(double, signed_char)
+CNV(double, unsigned_short)
+CNV(double, unsigned_int)
+CNV(double, unsigned_long)
+CNV(double, unsigned_long_long)
+CNV(unsigned_char, char)
+CNV(unsigned_char, short)
+CNV(unsigned_char, int)
+CNV(unsigned_char, long)
+CNV(unsigned_char, long_long)
+CNV(unsigned_char, float)
+CNV(unsigned_char, double)
+CNV(unsigned_char, unsigned_char)
+CNV(unsigned_char, signed_char)
+CNV(unsigned_char, unsigned_short)
+CNV(unsigned_char, unsigned_int)
+CNV(unsigned_char, unsigned_long)
+CNV(unsigned_char, unsigned_long_long)
+CNV(unsigned_char, void_star_ptr)
+CNV(signed_char, char)
+CNV(signed_char, short)
+CNV(signed_char, int)
+CNV(signed_char, long)
+CNV(signed_char, long_long)
+CNV(signed_char, float)
+CNV(signed_char, double)
+CNV(signed_char, unsigned_char)
+CNV(signed_char, signed_char)
+CNV(signed_char, unsigned_short)
+CNV(signed_char, unsigned_int)
+CNV(signed_char, unsigned_long)
+CNV(signed_char, unsigned_long_long)
+CNV(signed_char, void_star_ptr)
+CNV(unsigned_short, char)
+CNV(unsigned_short, short)
+CNV(unsigned_short, int)
+CNV(unsigned_short, long)
+CNV(unsigned_short, long_long)
+CNV(unsigned_short, float)
+CNV(unsigned_short, double)
+CNV(unsigned_short, unsigned_char)
+CNV(unsigned_short, signed_char)
+CNV(unsigned_short, unsigned_short)
+CNV(unsigned_short, unsigned_int)
+CNV(unsigned_short, unsigned_long)
+CNV(unsigned_short, unsigned_long_long)
+CNV(unsigned_short, void_star_ptr)
+CNV(unsigned_int, char)
+CNV(unsigned_int, short)
+CNV(unsigned_int, int)
+CNV(unsigned_int, long)
+CNV(unsigned_int, long_long)
+CNV(unsigned_int, float)
+CNV(unsigned_int, double)
+CNV(unsigned_int, unsigned_char)
+CNV(unsigned_int, signed_char)
+CNV(unsigned_int, unsigned_short)
+CNV(unsigned_int, unsigned_int)
+CNV(unsigned_int, unsigned_long)
+CNV(unsigned_int, unsigned_long_long)
+CNV(unsigned_int, void_star_ptr)
+CNV(unsigned_long, char)
+CNV(unsigned_long, short)
+CNV(unsigned_long, int)
+CNV(unsigned_long, long)
+CNV(unsigned_long, long_long)
+CNV(unsigned_long, float)
+CNV(unsigned_long, double)
+CNV(unsigned_long, unsigned_char)
+CNV(unsigned_long, signed_char)
+CNV(unsigned_long, unsigned_short)
+CNV(unsigned_long, unsigned_int)
+CNV(unsigned_long, unsigned_long)
+CNV(unsigned_long, unsigned_long_long)
+#if 0
+CNV(unsigned_long, void_star_ptr)
+#endif
+CNV(unsigned_long_long, char)
+CNV(unsigned_long_long, short)
+CNV(unsigned_long_long, int)
+CNV(unsigned_long_long, long)
+CNV(unsigned_long_long, long_long)
+CNV(unsigned_long_long, float)
+CNV(unsigned_long_long, double)
+CNV(unsigned_long_long, unsigned_char)
+CNV(unsigned_long_long, signed_char)
+CNV(unsigned_long_long, unsigned_short)
+CNV(unsigned_long_long, unsigned_int)
+CNV(unsigned_long_long, unsigned_long)
+CNV(unsigned_long_long, unsigned_long_long)
+#if 0
+CNV(unsigned_long_long, void_star_ptr)
+#endif
+#if 0
+CNV(void_star_ptr, char)
+CNV(void_star_ptr, short)
+CNV(void_star_ptr, int)
+CNV(void_star_ptr, long)
+CNV(void_star_ptr, long_long)
+CNV(void_star_ptr, unsigned_char)
+CNV(void_star_ptr, signed_char)
+CNV(void_star_ptr, unsigned_short)
+CNV(void_star_ptr, unsigned_int)
+CNV(void_star_ptr, unsigned_long)
+CNV(void_star_ptr, unsigned_long_long)
+CNV(void_star_ptr, void_star_ptr)
+#endif

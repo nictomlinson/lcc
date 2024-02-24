@@ -1,19 +1,13 @@
 #include "split16.md.pre.c"
-static int splitCost(int spaceCost, int timeCost){
-  // TODO: allow selection of optimsation criteria via a commandline switch
-return spaceCost;
+static int genCost(int spaceCost, int timeCost){
+      // TODO: allow selection of optimsation criteria via a commandline switch
+      return (spaceCost * 100) + timeCost;
 }
 
-// Get the offset from the frame pointer for a local
-// and formal parameter
-static int frameOffset(Node a){
-  assert(a->syms[0]->scope >= PARAM && a->syms[0]->sclass != STATIC && "only expected for locals and formals");
-  return a->syms[0]->x.offset;
-  }
 static int cvSrcSize(Node a) { return a->syms[0]->u.c.v.i; }
 
 static int ifCost(int cond, int spaceCost, int timeCost){
-  return cond ?  splitCost(spaceCost, timeCost) : LBURG_MAX;
+  return cond ?  genCost(spaceCost, timeCost) : LBURG_MAX;
 }
 
 static int inRange(Node a, int lo, int hi) {
@@ -21,13 +15,6 @@ static int inRange(Node a, int lo, int hi) {
   else
     return 0;
 }
-
-static int between(int a, int lo, int hi) { return (a >= lo && a <= hi); }
-
-static int rootNode(Node a) { return !(a->x.prev); }
-static int variadicNode(Node a) { return variadic(a->syms[0]->type); }
-
-static int argNo(Node a) { return a->x.argno; }
 
 static void emitSymbol(Symbol p, const char *qualifier, int endLine) {
   if (!verbose) return;
@@ -90,7 +77,7 @@ static void emitSymbol(Symbol p, const char *qualifier, int endLine) {
 static void I(segment)(int n) {
   if (cseg != n) switch (cseg = n) {
       case CODE:
-        print("\n.segment code\n");
+        print("\n.segment text\n");
         return;
       case DATA:
         print("\n.segment data\n");
@@ -172,15 +159,11 @@ static void dumptree(Node p) {
     case JUMP:
     case RET:
       assert(p->kids[0]);
-      assert(!p->kids[1]);
+/*      assert(!p->kids[1]);*/
       indent++;
       dumptree(p->kids[0]);
       indent--;
       print("%I%s\n", indent, opname(p->op));
-      if (generic(p->op) == ARG) {
-        int argSize = roundup(p->syms[0]->u.c.v.i, 2) / 2;
-        callArgCells += argSize;
-      }
       return;
     case CALL:
       assert(p->kids[0]);
@@ -193,12 +176,7 @@ static void dumptree(Node p) {
         dumptree(p->kids[0]);
         if (specific(p->op) == CALL + B) dumptree(p->kids[1]);
         indent--;
-        print("%I%s", indent, opname(p->op));
-      if (variadic(p->syms[0]->type))
-        print(" %d // variadic call\n", callArgCells);
-      else
-        print("\n");
-      callArgCells = 0;
+        print("%I%s\n", indent, opname(p->op));
       return;
     case ASGN:
       assert(p->kids[0]);
@@ -245,7 +223,8 @@ static void dumptree(Node p) {
       print("%I%s %s\n", indent, opname(p->op), p->syms[0]->x.name);
       return;
   }
-  assert(0);
+  print("%I,Should not be here, op:%x, %s\n", indent, p->op, opname(p->op));
+  /* assert(0); */
 }
 
 static int getrule(Node p, int nt) {
@@ -271,26 +250,28 @@ static int getrule(Node p, int nt) {
 
 static void emit2(Node p) { assert(0 && "Not expected emit2 to be used"); }
 
-static int asmLinePos = 0;
-static void emitAsmAdvanceTo(int pos){
-    do {
-      putchar(' ');
-      asmLinePos += 1;
-    } while (asmLinePos < pos);
-}
-static void emitAsmCh(char c){
-  if (c == ';') emitAsmAdvanceTo(40);
+static int asmLinePos = 1;
+static void emitAsmAdvanceTo(int tabStop);
+static void emitAsmCh(char c) {
+  if (c == ';')
+    emitAsmAdvanceTo(4);
   (void)putchar(c);
-  asmLinePos++;
-  if (c == '\n') asmLinePos = 0;
-
-}
-static void emitAsmStr(char *s){
-  int i;
-  for (i = 0; s[i]; i++) {
-    emitAsmCh(s[i]);
+  if(c == '\t')
+    asmLinePos = (((asmLinePos-1) >> 3) << 3) + 8+1;
+  else 
+    asmLinePos++;
+  if (c == '\n'){
+    asmLinePos = 1;
   }
 }
+
+static void emitAsmAdvanceTo(int tabStop){
+  emitAsmCh('\t');
+  while (asmLinePos < (tabStop * 8 + 1)) {
+    emitAsmCh('\t');
+  }
+}
+
 
 static unsigned emitassembly(Node p, int nt) {
   int rulenum;
@@ -325,27 +306,31 @@ static unsigned emitassembly(Node p, int nt) {
     for (_kids(p, rulenum, kids); *fmt; fmt++)
       if (*fmt != '%'){
         emitAsmCh(*fmt);
-      } else if (*++fmt == 'F')
+      } else if (*++fmt == 'F'){
         print("%d", framesize);
+      }
       else if (*fmt >= '0' && *fmt <= '9'){
         indent++;
         emitassembly(kids[*fmt - '0'], nts[*fmt - '0']);
         indent--;
       }
       else if (*fmt >= 'a' && *fmt < 'a' + NELEMS(p->syms)){
-        emitAsmStr(p->syms[*fmt - 'a']->x.name);
+        int i;
+        char *s = p->syms[*fmt - 'a']->x.name;
+        for (i = 0; s[i]; i++) {
+          emitAsmCh(s[i]);
+        }
       }
-      /*      else if (*fmt >= 'A' && *fmt < 'A' + NELEMS(p->syms))
-                print("%d", p->syms[*fmt - 'A']->x.offset);*/
       else if (*fmt == 'L'){
-        print("\n%I", indent);
-        asmLinePos = indent;
-      } else if (*fmt == 'I'){
-        print("%I", indent);
+        print("\n\t%I", indent);
+        asmLinePos = indent+1;
+      } else if (*fmt == 'I') {
+        print("\t%I", indent);
         asmLinePos += indent;
       } else if (*fmt == 'T') {
-        emitAsmAdvanceTo(24);
-      } else if (*fmt == '<') indent -= 1;
+        emitAsmAdvanceTo(2);
+      } else if (*fmt == '<')
+        indent -= 1;
       else if (*fmt == '>') indent +=1;
       else{
         emitAsmCh(*fmt);
@@ -359,12 +344,8 @@ static void I(emitBurg)(Node p) {
 #if(0)
     assert(p->x.registered);
 #endif
-    if (!(generic(p->op) == LABEL)) indent += 2;
     emitassembly(p, p->x.inst);
     p->x.emitted = 1;
-    if (!(generic(p->op) == LABEL)) indent -= 2;
-    //  if(!(generic(p->op)==LABEL))
-    //    print("\n");
   }
 }
 
@@ -504,7 +485,8 @@ static void I(progbeg)(int argc, char *argv[]) {
     } u;
     u.i = 0;
     u.c = 1;
-    swap = ((int)(u.i == 1)) != IR->little_endian;
+    swap = ((int)(u.i == 1)) != IR->little_endian; /*not used?*/
+    hostLittle = ((int)(u.i == 1));
   }
   int i;
   for (i = 1; i < argc; i++)
@@ -530,18 +512,14 @@ static void I(local)(Symbol p) {
 static void I(function)(Symbol f, Symbol caller[], Symbol callee[],
                         int ncalls) {
   int i;
-  int returnValueSize = f->type->type->size;
 
   (*IR->segment)(CODE);
-  if(f->sclass != STATIC)
-    print("%I.export %s: {\n", indent++, f->x.name);
-  else
-    print("%I %s: {\n", indent++, f->x.name);
+  print("%s: {\n", f->x.name);
 
   if(verbose){
     emitSymbol(f, "function", 0);
     print(" nrCalls=%d\n", ncalls);
-    if (!hasproto(f->type)) print("%I.info NoPrototype\n", indent);
+    if (!hasproto(f->type)) print(".info NoPrototype\n");
   }
 
   offset = 0;
@@ -560,7 +538,7 @@ static void I(function)(Symbol f, Symbol caller[], Symbol callee[],
     for (i = 0; callee[i]; i++) {
       emitSymbol(callee[i], "callee", 1);
     }
-    print("%I.info returnSize=%d maxoffset=%d maxargoffset=%d isVariadc=%s\n", indent, 
+    print(".info returnSize=%d maxoffset=%d maxargoffset=%d isVariadc=%s\n", 
         f->type->type->size, maxoffset, maxargoffset, variadic(f->type) ? "yes" : "no");
   }
   // emit prolog
@@ -568,31 +546,28 @@ static void I(function)(Symbol f, Symbol caller[], Symbol callee[],
   // return address, before setting FP and SP to point at the first paramater on
   // the stack. We now need to allocate space for locals and, if this function
   // makes any calls, save our FP to the data stack
-  indent += 2;
   if(ncalls==0){
     if (framesize<256) {
-      print("%IenterLeaf.8 %d\n", indent, framesize);
+      print("\tenterLeaf.8 %d\n", framesize);
     } else {
-      print("%IenterLeaf.16 %d\n", indent, framesize);
+      print("\tenterLeaf.16 %d\n", framesize);
     }
   } else {
     if (framesize<256) {
-      print("%Ienter.8 %d\n", indent, framesize);
+      print("\tenter.8 %d\n", framesize);
     } else {
-      print("%Ienter.16 %d\n", indent, framesize);
+      print("\tenter.16 %d\n", framesize);
     }
   }
 
-  callArgCells = 0;
   emitcode();
 
   // emit epilog.
   if(ncalls==0)
-    print("%IexitLeaf\n", indent);
+    print("\texitLeaf\n");
   else
-    print("%Iexit\n", indent);
-  indent -= 2;
-  print("%I}\n", --indent);
+    print("\texit\n");
+  print("}\n");
 }
 
 static void I(defsymbol)(Symbol p) {
@@ -617,61 +592,58 @@ static void I(address)(Symbol q, Symbol p, long n) {
   }
 }
 
-static void I(defconst)(int suffix, int size, Value v) {
-  if (suffix == I && size == 1)
-    print("%I.def1b 0x%X\n", indent, v.i & 0xff);
-  else if (suffix == I && size == 2)
-    print("%I.def2b 0x%X\n", indent, v.i & 0xffff);
-  else if (suffix == I && size == 4)
-    print("%I.def4b 0x%X\n", indent, v.i & 0xffffffff);
-  else if (suffix == U && size == 1)
-    print("%I.def1b 0x%X\n", indent, v.u & 0xff);
-  else if (suffix == U && size == 2)
-    print("%I.def2b 0x%X\n", indent, v.u & 0xffff);
-  else if (suffix == U && size == 4)
-    print("%I.def4b 0x%X\n", indent, v.u & 0xffffffff);
-  else if (suffix == P && size == 2)
-    print("%I.def2b 0x%X\n", indent, ((unsigned)v.p) & 0xffff);
-  else if (suffix == F && size == 4) {
-    float f = v.d;
-    print(".def4b 0x%X\n", (*(unsigned *)&f) & 0xffffffff);
-  } else if (suffix == F && size == 8) {
-    double d = v.d;
-    unsigned *p = (unsigned *)&d;
-    print("%I.def8b 0x%X\n.def4b 0x%X\n", indent, p[swap] & 0xffffffff,
-          p[!swap] & 0xffffffff);
-  } else
-    assert(0);
+static void sprintHex(unsigned char *src, int len, unsigned char *buf){
+  int i;
+    for (i = hostLittle ? len-1 : 0; len > 0; i += hostLittle ? -1 : 1, len--){
+      sprintf(buf, "%02X", src[i]);
+      buf += 2;
+    }
 }
 
-static void I(defaddress)(Symbol p) { print(".def2b %s\n", p->x.name); }
+static void I(defconst)(int suffix, int size, Value v) {
+  unsigned char buf[17];
+  unsigned char *p;
+  float f = v.d;
+  double d = v.d;
+  if (suffix == I && (size == 1 || size == 2 || size == 4 || size == 8))
+    p = (unsigned char *)&v.i;
+  else if (suffix == U && (size == 1 || size == 2 || size == 4 || size == 8))
+    p = (unsigned char *)&v.u;
+  else if (suffix == P && size == 2)
+    p = (unsigned char *)&v.p;
+  else if (suffix == F && size == 4)
+    p = (unsigned char *)&f;
+  else if (suffix == F && size == 8)
+    p = (unsigned char *)&d;
+  else
+    assert(0);
+  sprintHex(p, size, buf);
+  print("\t.def%d\t0x%s\n", size, buf);
+}
+
+static void I(defaddress)(Symbol p) { print("\t.def2b %s\n", p->x.name); }
 
 static void I(defstring)(int len, char *str) {
   char *s;
-  for (s = str; s < str + len; s++) print(".def1b %d\n", (*s) & 0xFF);
+  for (s = str; s < str + len; s++) print("\t.def1b\t%d\n", (*s) & 0xFF);
 }
 
 static void I(export)(Symbol p) {
-  if (p->scope != GLOBAL)
-    print("%I.export %s //TODO: not expecting to emit this\n", indent,
-          p->x.name);
+    print(".global %s\n", p->x.name);
 }
 
-static void I(import)(Symbol p) { print("%I.extern %s\n", indent, p->x.name); }
+static void I(import)(Symbol p) { print(".extern %s\n", p->x.name); }
 
 static void I(global)(Symbol p) {
-  assert(p->type->align == 1 || p->type->align == 2 && "unexpected alignment");
-  print(".align %d\n", p->type->align);
-  if (p->sclass != STATIC) print(".export ");
+  if(p->type->align != 1)
+    print(".align %d\n", p->type->align);
   print("%s:\n", p->x.name);
-  if (p->u.seg == BSS) print("	.defs %d\n", p->type->size);
+  if (p->u.seg == BSS) print("\t.defspace %d\n", p->type->size);
 }
 
 static void I(space)(int n) {
   if (cseg != BSS)
-    print("%I.skip %d // seg%d\n", indent, n, cseg);
-  else
-    print("%I.info nospace for BSS segment\n", indent);
+    print("\t.defs\t%d\n", n);
 }
 
 static void I(stabline)(Coordinate *cp) {
@@ -695,9 +667,9 @@ Interface split16IR = {
     2, 2, 0, /* short */
     2, 2, 0, /* int */
     4, 2, 0, /* long */
-    4, 2, 0, /* long long */
-    4, 2, 1, /* float */
-    8, 2, 1, /* double */
+    8, 2, 0, /* long long */
+    4, 2, 0, /* float */
+    8, 2, 0, /* double */
     8, 2, 0, /* long double */
     2, 2, 0, /* T* */
     0, 2, 0, /* struct */

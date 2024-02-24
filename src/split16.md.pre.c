@@ -16,17 +16,12 @@ static char rcsid[] = "$Id$";
 static int verbose = 0;
 static int indent;
 static int cseg = 0;  // current segment
-static int callArgCells;
 static int dumpPacked = 0;
-static int splitCost(int spaceCost, int timeCost);
-static int frameOffset(Node a); // frame offset of a local or formal parameter
+static int hostLittle; // set true if host is little endian'
+static int genCost(int spaceCost, int timeCost);
 static int cvSrcSize(Node a);  // size of the source value of a CVxxx node
 static int ifCost(int cond, int spaceCost, int timeCost);
 static int inRange(Node a, int lo, int hi);
-static int between(int a, int lo, int hi);
-static int argNo(Node a); // return the argno field of the XNode
-static int rootNode(Node a);
-static int variadicNode(Node a);
 
 static void doarg(Node);
 
