@@ -188,15 +188,15 @@ v: EQU8(u,u) "%0\n%1%LEQU8%T%a\n" genCost(3, 1)
 
 v: GEF4(f,f) "%0\n%1%LGEF4%T%a\n" genCost(3, 1)
 v: GEF8(f,f) "%0\n%1%LGEF8%T%a\n" genCost(3, 1)
-v: GEI2(i,i) "%0\n%1%LGEI2%T%a\n" genCost(3, 1)
+v: GEI2(i,i) "%1\n%0%Lbr.le.s16%T%a\n" genCost(3, 1)
 v: GEU2(u,u) "%0\n%1%LGEU2%T%a\n" genCost(3, 1)
 v: GEI4(i,i) "%0\n%1%LGEI4%T%a\n" genCost(3, 1)
 v: GEU4(u,u) "%0\n%1%LGEU4%T%a\n" genCost(3, 1)
 
 v: GTF4(f,f) "%0\n%1%LGTF4%T%a\n" genCost(3, 1)
 v: GTF8(f,f) "%0\n%1%LGTF8%T%a\n" genCost(3, 1)
-v: GTI2(i,i) "%0\n%1%LGTI2%T%a\n" genCost(3, 1)
-v: GTU2(u,u) "%0\n%1%LGTU2%T%a\n" genCost(3, 1)
+v: GTI2(i,i) "%1\n%0%Lbr.lt.s16%T%a\n" genCost(3, 1)
+v: GTU2(u,u) "%1\n%0%Lbr.lt.u16%T%a\n" genCost(3, 1)
 v: GTI4(i,i) "%0\n%1%LGTI4%T%a\n" genCost(3, 1)
 v: GTU4(u,u) "%0\n%1%LGTU4%T%a\n" genCost(3, 1)
 v: GTI8(i,i) "%0\n%1%LGTI8%T%a\n" genCost(3, 1)
@@ -231,6 +231,7 @@ v: NEU8(u,u) "%0\n%1%LNEU8%T%a\n" genCost(3, 1)
 
 v: EQI2(i,cnst_zero) "%0%Lbr.eqz%T%a\n" genCost(3, 1)
 v: NEI2(i,cnst_zero) "%0%Lbr.nez%T%a\n" genCost(3, 1)
+v: NEU2(u,cnst_zero) "%0%Lbr.nez%T%a\n" genCost(3, 1)
 
 v: JUMPV(p) "%0%LJUMPV\n" 10
 v: LABELV "    %a:\n"
@@ -430,6 +431,7 @@ i: CNSTI1 "%Ipush.s8%T%a" ifCost(inRange(a, 0, 255), 2, 1)
 i: CNSTI2 "%Ipush.s8%T%a" ifCost(inRange(a, 0, 255), 2, 1)
 
 cnst_zero: CNSTI2 "%a" range(a,0,0)
+cnst_zero: CNSTU2 "%a" range(a,0,0)
 conS8: CNSTI2 "%a" inRange(a, 0, 255)
 conS16: CNSTI2 "%a"
 
@@ -517,7 +519,7 @@ v: ASGNB(p,INDIRB(p)) "%0\n%1%Lmemcopy%T%a\n" genCost(3, 1)
 
 p: ADDRFP2 "%Ipushea%Tfp[%a]" genCost(3, 1)
 p: ADDRLP2 "%Ipushea%Tfp[%a]" genCost(3, 1)
-p: ADDRGP2 "%Ipushea%Tdp[%a]" genCost(3, 1)
+p: ADDRGP2 "%Ipushea.16%T%a" genCost(3,1)
 
 p: ADDRFP2 "%Ipushea%Tfp[%a]" ifCost(inRange(a, -128, 127), 2, 1)
 p: ADDRLP2 "%Ipushea%Tfp[%a]" ifCost(inRange(a, -128, 127), 2, 1)
@@ -615,7 +617,7 @@ v: ASGNF8(g16,f) "%1%Lpop.64%Tdp[%0]\n" genCost(3, 1)
 
 cnstp2: CNSTP2 "%a" 0
 cnsti2: CNSTI2 "%a" 0
-v: ASGNI2(cnstp2, cnsti2) "%Istore.16%T[%0], %1\n" 1
+v: ASGNI2(cnstp2, cnsti2) "%Istore.16%Td0[%0], %1\n" 1
 
 i: INDIRI1(INDIRP2(fp8)) "%Ipush.s8%T*fp[%0]" genCost(2, 1)
 u: INDIRU1(INDIRP2(fp8)) "%Ipush.u8%T*fp[%0]" genCost(2, 1)

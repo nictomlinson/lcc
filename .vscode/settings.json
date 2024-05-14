@@ -1,3 +1,17 @@
 {
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "cstdio": "c",
+        "*.md": "c",
+        "cmath": "c",
+        "c.h": "c",
+        "token.h": "c",
+        "ops.h": "c",
+        "cstddef": "c",
+        "type_traits": "c",
+        "limits": "c",
+        "*.tcc": "c",
+        "typeinfo": "c"
+    },
+    "less.format.preserveNewLines": true
 }

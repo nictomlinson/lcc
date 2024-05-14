@@ -1,5 +1,4 @@
 #pragma xxxxx
-int y;
 int *addrOfY;
 int *addr2OfY;
 int z;
@@ -35,17 +34,24 @@ typedef struct {
 
 byte aByte;
 
-void doNothing() {}
+void doNothing(void) {}
+int y;
 void (*doNothingFptr)(void) = doNothing;
+
+void (*addressOfFunction(void))(void) { return doNothing; }
+int *addressOfData(void) { return &y; }
+void (*addressOfFunctionFromPtr(void))() { return doNothingFptr; }
 void callThroughFunctionPointer() { doNothingFptr(); }
 
 char globalOffsetAccess() { return aString[5]; }
+
 
 void (*Fptrs[2])(void);
 void callThroughFunctionPointers() { Fptrs[1](); }
 void assignDouble(double d) { d = 0.0; }
 void charLocal() { char c = 1; }
-int addCharAndInt(){char c = 1;
+int addCharAndInt() {
+  char c = 1;
   int i = 64;
   return i + c;
 }
@@ -96,7 +102,9 @@ unsigned short unsignedShortFromFloat;
 unsigned int unsignedIntFromFloat;
 int intFromFloat;
 void floatTouUsignedChar(float f) { unsignedCharFromFloat = f; }
-void floatToUnsignedShort(float f) { unsignedShortFromFloat = (unsigned short)f; }
+void floatToUnsignedShort(float f) {
+  unsignedShortFromFloat = (unsigned short)f;
+}
 void floatToUnsignedInt(float f) { unsignedIntFromFloat = f; }
 void floatToInt(float f) { intFromFloat = f; }
 unsigned int i2ToU2(int i) { return i; }
@@ -122,28 +130,33 @@ void i2ToI4() {
 extern signed char cv_i2_to_i1_char;
 extern int cv_i2_to_i1_int;
 
-void do_cv_i2_to_u2() { int a;
+void do_cv_i2_to_u2() {
+  int a;
   unsigned int b = a;
 }
 
 void do_cv_i2_to_i1() {
   int i;
-  signed char c=i;
+  signed char c = i;
 }
 
-void do_cv_u1_to_i2() { unsigned char c;
+void do_cv_u1_to_i2() {
+  unsigned char c;
   int b = c;
 }
 
-void do_cv_i4_to_i1() { long l;
+void do_cv_i4_to_i1() {
+  long l;
   signed char c = l;
 }
 
-void do_cv_u2_to_i2() { unsigned int a;
+void do_cv_u2_to_i2() {
+  unsigned int a;
   int b = a;
 }
 
-void signedIntToUnsignedInt() { int a = 5;
+void signedIntToUnsignedInt() {
+  int a = 5;
   unsigned int b;
   b = a;
 }
@@ -158,33 +171,32 @@ void doSwitch(int i) {
     case 2:
       x = i;
       break;
-    case 7:
+    case 4:
       x = i;
       break;
-    case 8:
+    case 5:
       x = i;
       break;
-    case 9:
+    case 6:
       x = i;
       break;
-    case 16:
+    case 416:
       x = i;
       break;
-    case 17:
+    case 417:
       x = i;
       break;
-    case 18:
+    case 418:
       x = i;
       break;
-    case 19:
+    case 419:
       x = i;
       break;
-    case 20:
+    case 420:
       x = i;
       break;
   }
 }
-
 
 byte adder() {
   byte b;
@@ -194,7 +206,8 @@ byte adder() {
 
 void returnvoid() { return; }
 
-int wrongReturn() { long a;
+int wrongReturn() {
+  long a;
   return a;
 }
 typedef struct {
@@ -240,7 +253,7 @@ extern int extFunc(intStruct strct);
 static void func() {
   intStruct strt;
   intStruct *strtPtr;
-  int x=23;
+  int x = 23;
   strt.x[0] = 2;
   strtPtr = &strt;
   strtPtr->c = 5;
@@ -292,10 +305,11 @@ static int aFunction(float f1, float f2, unsigned int t) {
   unsigned int (*ptrToAddSeven)(char a, int s, short i, float f, myStruct strc,
                                 char *iptr);
   signed char c;
+  int (*instrinsicPtr)(int a, int b);
   x = 57;
 
   c = __admStdIntrinsic_SomRandomIntrinsic(*intPointer, 115);
-
+  instrinsicPtr = __admStdIntrinsic_SomRandomIntrinsic;
   useShort(*cPtr);
   doPerson(&ftype, &person);
   myFType('a', 'b');
@@ -366,7 +380,7 @@ void caller(void) { callee("wrong arg"); }
 void callee() {}
 
 void copyBytes(char *src, char *dst, int cnt) {
-  for (; cnt>0; cnt--) {
+  for (; cnt > 0; cnt--) {
     *dst++ = *src++;
   }
 }
@@ -374,10 +388,9 @@ void copyBytes(char *src, char *dst, int cnt) {
 void whatIsFirstArg(int a, ...) {
   int i;
   i = __typecode(__firstarg) == 1;
-
 }
 
-long long addI8(long long a, long long b) { return a+b; }
+long long addI8(long long a, long long b) { return a + b; }
 
 /*
 char
@@ -395,11 +408,11 @@ unsigned_long
 unsigned_long_long
 void_star_ptr
 */
-typedef  unsigned char unsigned_char;
-typedef  signed char signed_char;
-typedef  unsigned short unsigned_short;
-typedef  unsigned int unsigned_int;
-typedef  unsigned long unsigned_long;
+typedef unsigned char unsigned_char;
+typedef signed char signed_char;
+typedef unsigned short unsigned_short;
+typedef unsigned int unsigned_int;
+typedef unsigned long unsigned_long;
 typedef long long long_long;
 typedef unsigned long long unsigned_long_long;
 typedef void *void_star_ptr;
