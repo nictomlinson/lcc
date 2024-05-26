@@ -228,7 +228,8 @@ Node listnodes(Tree tp, int tlab, int flab) {
 		      p->syms[0]->type = tp->kids[0]->type->type;
 		      list(p);
 		      reset();
-		      cfunc->u.f.ncalls++;
+			  if(!p->syms[0]->type->u.f.asmcall)
+			      cfunc->u.f.ncalls++;
 		      firstarg = save;
  } break;
 	case ARG:   { assert(tlab == 0 && flab == 0);

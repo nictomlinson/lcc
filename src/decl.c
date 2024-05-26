@@ -328,6 +328,14 @@ static Type dclr1(char **id, Symbol **params, int abstract) {
 	Type ty = NULL;
 	int asmcall;
 
+	/*
+		This implementation of a function attribute works ok because it does
+		not need to support function pointers. Perhaps for an attribute that
+		supports function pointers, add another int * attribute to dclr1 to
+		represent it, on entry pass in a pointer to an int set to zero and then
+		pass that same pointer to the recursive calls. Then below where the
+		u->f->asmcall is set, set the new function attribute & set *attribute = 0. 
+	*/
 	if(t==ASMCALL){
 		asmcall = 1;
 		t = gettok();
