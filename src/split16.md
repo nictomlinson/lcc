@@ -484,7 +484,10 @@ f: CALLF8(g16) "%I%0" ifCost(isAsmCall(a),0,0)
 v: CALLB(p,p) "ERROR; Not expecting CALLB(p,p)\n" 100
 v: CALLB(g16,p) "ERROR; Not expecting CALLB(g16,p)\n" 100
 v: CALLV(p) "%0%Lcall\n" 1
-v: CALLV(g16) "%Icall%Tpc[%0]\n" 0
+
+v: CALLV(g16) "%Icall%Tpc[%0]\n" ifCost(!isAsmCall(a),0,0)
+v: CALLV(g16) "%I%0\n" ifCost(isAsmCall(a),0,0)
+
 
 u: INDIRU1(p) "%0%Lload.u8" 10
 i: INDIRI1(p) "%0%Lload.s8" 1

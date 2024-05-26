@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 		if (strcmp(argv[i], "-n") == 0) {
 			if (!YYnull) {
 				YYnull = install(string("_YYnull"), &globals, GLOBAL, PERM);
-				YYnull->type = func(voidptype, NULL, 1);
+				YYnull->type = func(voidptype, NULL, 1,  0);
 				YYnull->sclass = EXTERN;
 				(*IR->defsymbol)(YYnull);
 			}
@@ -62,14 +62,14 @@ int main(int argc, char *argv[]) {
 			char *p = strchr(argv[i], ',');
 			if (p) {
 				YYcheck = install(string(p+1), &globals, GLOBAL, PERM);
-				YYcheck->type = func(voidptype, NULL, 1);
+				YYcheck->type = func(voidptype, NULL, 1, 0);
 				YYcheck->sclass = EXTERN;
 				(*IR->defsymbol)(YYcheck);
 				p = stringn(argv[i]+2, p - (argv[i]+2));
 			} else
 				p = string(argv[i]+2);
 			YYnull = install(p, &globals, GLOBAL, PERM);
-			YYnull->type = func(voidptype, NULL, 1);
+			YYnull->type = func(voidptype, NULL, 1, 0);
 			YYnull->sclass = EXTERN;
 			(*IR->defsymbol)(YYnull);
 		} else {

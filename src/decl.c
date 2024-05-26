@@ -170,6 +170,7 @@ static void decl(Symbol (*dcl)(int, char *, Type, Coordinate *)) {
 				exitparams(params);
 		} else
 			ty1 = dclr(ty, &id, NULL, 0);
+
 		for (;;) {
 			if (Aflag >= 1 && !hasproto(ty1))
 				warning("missing prototype\n");
@@ -301,8 +302,7 @@ static Type dclr(Type basety, char **id, Symbol **params, int abstract) {
 			break;
 		case FUNCTION:
 			basety = func(basety, ty->u.f.proto,
-				ty->u.f.oldstyle);
-			basety->u.f.asmcall = ty->u.f.asmcall;
+				ty->u.f.oldstyle, ty->u.f.asmcall);
 			break;
 		case ARRAY:
 			basety = array(basety, ty->size, 0);
@@ -326,7 +326,7 @@ static Type tnode(int op, Type type) {
 }
 static Type dclr1(char **id, Symbol **params, int abstract) {
 	Type ty = NULL;
-	int asmcall = 0;
+	int asmcall;
 
 	if(t==ASMCALL){
 		asmcall = 1;
@@ -361,8 +361,10 @@ static Type dclr1(char **id, Symbol **params, int abstract) {
 					ty = dclr1(id, params, abstract);
 					expect(')');
 					if (abstract && ty == NULL
-					&& (id == NULL || *id == NULL))
-						return tnode(FUNCTION, NULL);
+					&& (id == NULL || *id == NULL)){
+						ty = tnode(FUNCTION, NULL);
+						return ty;
+					}
 				} break;
 	case '[': break;
 	default:  return ty;
@@ -372,6 +374,7 @@ static Type dclr1(char **id, Symbol **params, int abstract) {
 		case '(': t = gettok(); { Symbol *args;
 					  ty = tnode(FUNCTION, ty);
 					  ty->u.f.asmcall = asmcall;
+					  asmcall = 0;
 					  enterscope();
 					  if (level > PARAM)
 					  	enterscope();
@@ -717,7 +720,7 @@ static void funcdefn(int sclass, char *id, Type ty, Symbol params[], Coordinate 
 			for (i = 0; i < n; i++)
 				proto[i] = caller[i]->type;
 			proto[i] = NULL;
-			ty = func(rty, proto, 1);
+			ty = func(rty, proto, 1, ty->u.f.asmcall);
 		}
 	} else {
 		callee = params;

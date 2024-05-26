@@ -332,9 +332,9 @@ struct type {
 		Symbol sym;
 		struct {
 			unsigned oldstyle:1;
-                        unsigned asmcall : 1;
-                        Type *proto;
-                } f;
+            unsigned asmcall:1;
+            Type *proto;
+            } f;
 	} u;
 	Xtype x;
 };
@@ -588,7 +588,7 @@ extern int eqtype(Type, Type, int);
 extern Field fieldlist(Type);
 extern Type freturn(Type);
 extern Type ftype(Type, ...);
-extern Type func(Type, Type *, int);
+extern Type func(Type, Type *, int, int);
 extern Field newfield(char *, Type, Type);
 extern Type newstruct(int, char *);
 extern void printtype(Type, int);

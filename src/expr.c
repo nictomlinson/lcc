@@ -298,7 +298,7 @@ static Tree postfix(Tree p) {
 			    		ty = p->type->type;
 			    	else {
 			    		error("found `%t' expected a function\n", p->type);
-			    		ty = func(voidtype, NULL, 1);
+			    		ty = func(voidtype, NULL, 1, 0);
 			    		p = retype(p, ptr(ty));
 			    	}
 			    	pt = src;
@@ -360,7 +360,7 @@ static Tree primary(void) {
 				p->src = src;
 				if (getchr() == '(') {
 					Symbol q = lookup(token, externals);
-					p->type = func(inttype, NULL, 1);
+					p->type = func(inttype, NULL, 1, 0);
 					p->sclass = EXTERN;
 					if (Aflag >= 1)
 						warning("missing prototype\n");

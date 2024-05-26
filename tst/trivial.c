@@ -627,22 +627,26 @@ CNV(void_star_ptr, unsigned_long_long)
 CNV(void_star_ptr, void_star_ptr)
 #endif
 
-static int __asmcall asmCallFuncAB(int a, int b) { return 1; }
-static int __asmcall asmCallFunc(void) { return 1; }
-
+extern int __asmcall asmCallFuncAB(int a, int b);
+extern int __asmcall asmCallFunc(void);
+static int __asmcall asmCallFuncOldStyle() { return 1; }
 
 void callAsmCallFuncAB() { asmCallFuncAB(7, 9); }
 void callAsmCallFunc() { asmCallFunc(); }
-
+void callAsmCallFuncOldStyle() { asmCallFuncOldStyle(); }
 
 extern int __asmcall externAsmCallFunc(int a, int b);
 
 void callExternAsmCallFunc() { externAsmCallFunc(7, 9); }
 
 void asmCallViaFPointer() {
-  /* This does not currently work since the __asmcall attribute is not
-   retained for function pointers. That's fine for the time being
+  #if 0
+  /* This does not  work since the __asmcall attribute is not
+   handled for function pointers. You can't take the address of 
+   an assembly instruction!
+   However, it is more by good luck than good management.
    */
-  int (*__asmcall fp)(int a, int b) = asmCallFuncAB;
+  int (* __asmcall fp)(int a, int b)  = asmCallFuncAB;
   fp(13, 15);
+  #endif
 }

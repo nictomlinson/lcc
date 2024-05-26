@@ -142,7 +142,7 @@ void type_init(int argc, char *argv[]) {
 	pointersym->u.limits.max.p = (void*)ones(8*IR->ptrmetric.size);
 	pointersym->u.limits.min.p = 0;
 	voidptype = ptr(voidtype);
-	funcptype = ptr(func(voidtype, NULL, 1));
+	funcptype = ptr(func(voidtype, NULL, 1, 0));
 	charptype = ptr(chartype);
 #define xx(v,t) if (v==NULL && t->size==voidptype->size && t->align==voidptype->align) v=t
 	xx(unsignedptr,unsignedshort);
@@ -246,12 +246,13 @@ Type qual(int op, Type ty) {
 	}
 	return ty;
 }
-Type func(Type ty, Type *proto, int style) {
+Type func(Type ty, Type *proto, int style, int asmcall) {
 	if (ty && (isarray(ty) || isfunc(ty)))
 		error("illegal return type `%t'\n", ty);
 	ty = type(FUNCTION, ty, 0, 0, NULL);
 	ty->u.f.proto = proto;
 	ty->u.f.oldstyle = style;
+	ty->u.f.asmcall = asmcall;
 	return ty;
 }
 Type freturn(Type ty) {
@@ -331,6 +332,8 @@ int eqtype(Type ty1, Type ty2, int ret) {
 		       return 0;
 	case FUNCTION: if (eqtype(ty1->type, ty2->type, 1)) {
 		       	Type *p1 = ty1->u.f.proto, *p2 = ty2->u.f.proto;
+				if(ty1->u.f.asmcall != ty2->u.f.asmcall)
+					return 0;
 		       	if (p1 == p2)
 		       		return 1;
 		       	if (p1 && p2) {
@@ -407,14 +410,15 @@ Type compose(Type ty1, Type ty2) {
 			 	return array(ty, ty2->size/ty2->type->size, ty2->align);
 			 return array(ty, 0, 0);    }
 	case FUNCTION: { Type *p1  = ty1->u.f.proto, *p2 = ty2->u.f.proto;
+			 int asmcall = (ty1->u.f.asmcall || ty2->u.f.asmcall) ? 1 : 0;
 			 Type ty   = compose(ty1->type, ty2->type);
 			 List tlist = NULL;
 			 if (p1 == NULL && p2 == NULL)
-			 	return func(ty, NULL, 1);
+			 	return func(ty, NULL, 1, asmcall);
 			 if (p1 && p2 == NULL)
-			 	return func(ty, p1, ty1->u.f.oldstyle);
+			 	return func(ty, p1, ty1->u.f.oldstyle, asmcall);
 			 if (p2 && p1 == NULL)
-			 	return func(ty, p2, ty2->u.f.oldstyle);
+			 	return func(ty, p2, ty2->u.f.oldstyle, asmcall);
 			 for ( ; *p1 && *p2; p1++, p2++) {
 			 	Type ty = compose(unqual(*p1), unqual(*p2));
 			 	if (isconst(*p1)    || isconst(*p2))
@@ -424,7 +428,7 @@ Type compose(Type ty1, Type ty2) {
 			 	tlist = append(ty, tlist);
 			 }
 			 assert(*p1 == NULL && *p2 == NULL);
-			 return func(ty, ltov(&tlist, PERM), 0); }
+			 return func(ty, ltov(&tlist, PERM), 0, asmcall); }
 	}
 	assert(0); return NULL;
 }
@@ -524,7 +528,7 @@ Type ftype(Type rty, ...) {
 	for ( ; ty != NULL; ty = va_arg(ap, Type))
 		list = append(ty, list);
 	va_end(ap);
-	return func(rty, ltov(&list, PERM), 0);
+	return func(rty, ltov(&list, PERM), 0, 0);
 }
 
 /* isfield - if name is a field in flist, return pointer to the field structure */
@@ -625,7 +629,7 @@ void printproto(Symbol p, Symbol callee[]) {
 		else
 			for (i = 0; callee[i]; i++)
 				list = append(callee[i]->type, list);
-		printdecl(p, func(freturn(p->type), ltov(&list, PERM), 0));
+		printdecl(p, func(freturn(p->type), ltov(&list, PERM), 0, p->type->u.f.asmcall));
 	}
 }
 
