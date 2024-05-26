@@ -332,8 +332,9 @@ struct type {
 		Symbol sym;
 		struct {
 			unsigned oldstyle:1;
-			Type *proto;
-		} f;
+                        unsigned fcall : 1;
+                        Type *proto;
+                } f;
 	} u;
 	Xtype x;
 };

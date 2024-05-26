@@ -11,6 +11,13 @@ static int isFunction(Node a) {
   return a->syms[0]->type && isfunc(a->syms[0]->type);
 }
 
+/* Determine if the function being called has the __fcall attribute */
+static int isFcall(Node a) {
+  assert(generic(a->op) == CALL);
+  return a->syms[0]->type && isfunc(a->syms[0]->type) &&
+         a->syms[0]->type->u.f.fcall;
+}
+
 static int isNotFunction(Node a) {
   assert(generic(a->op) == ADDRG);
   return a->syms[0]->type && !isfunc(a->syms[0]->type);
@@ -304,7 +311,8 @@ static unsigned emitassembly(Node p, int nt) {
   else {
     if (*fmt == '?' && (generic(p->op) == ARG || generic(p->op) == CALL)) {
       if (p->x.argno != 0) {
-        // skip the first assembly instruction (to newline) if this is an
+        // skip the first assembly instruction (up to the first newline) if this
+        // is an
         // an ARG Node and the argno is not zero or this is a CALL with no
         // arguments. Used to ensure the push of the stack pointer only happens
         // on the first arg
@@ -374,6 +382,57 @@ static Node genDiscard(Node p) {
   }
   return p;
 }
+/* check if P or its descendents are a CALL*/
+static Node findCall(Node p) {
+  Node call = NULL;
+  if (p->kids[0])
+    if ((call = findCall(p->kids[0])) != NULL) return call;
+  if (p->kids[1])
+    if ((call = findCall(p->kids[1])) != NULL) return call;
+  if (generic(p->op) == CALL) return p;
+  return NULL;
+}
+
+static Node genStartArg(Node q) {
+  Node call = NULL, p, newNode, prev;
+
+  if (generic(q->op) == CALL || generic(q->op) == ARG) {
+    if (q->x.argno != 0) return q;
+  } else if (generic(q->op) == ASGN && generic(q->kids[1]->op) == CALL) {
+    if (q->kids[1]->x.argno != 0) return q;
+  } else if (generic(q->op) == POP && generic(q->kids[0]->op) == CALL) {
+    if (q->kids[0]->x.argno != 0) return q;
+  } else
+    return q;
+
+  for (p = q; p; p = p->link) {
+    call = findCall(p);
+    if (call != NULL) break;
+  }
+  if (call == NULL) {
+    error("call not found for ARG or CALL\n");
+    return q;
+  }
+  if(call->syms[1] == NULL || call->syms[1]->type == NULL){
+    error("No type in sysm[1] for call\n");
+    return q;
+  }
+  if( !isfunc(call->syms[1]->type)){
+    error("Type found for callee of call is not a function: %t\n",
+          call->syms[1]->type);
+    return q;
+  }
+  if(verbose)
+    print(".info Found callee type: %t\n", call->syms[1]->type);
+
+  if (call->syms[1]->type->u.f.fcall == 1) {
+    /* Don't save sp if the calling convention of callee is fcall */
+    return q;
+  }
+  newNode = newnode(ARGSTART, NULL, NULL, NULL);
+  newNode->link = q;
+  return newNode;
+}
 
 static void reduce(Node p, int nt) {
   int rulenum, i;
@@ -416,38 +475,32 @@ static void linearize(Node p, Node next) {
   debug(fprint(stderr, "(listing %x)\n", p));
 }
 
-static int doArg_argno = 0;
-static int doArg_callNesting = 0;
+static int argno;
 static void doarg(Node p) {
-  p->x.argno = doArg_argno++;
-  if (p->x.argno == 0) {
-    doArg_callNesting += 1;
-  }
+  int align = 2;
+
+  if (argoffset == 0) argno = 0;
+  p->x.argno = argno++;
+  p->syms[2] = intconst(mkactual(align, p->syms[0]->u.c.v.i));
 }
 
 static void docall(Node p) {
-  if (doArg_argno > 0)
-    assert(doArg_callNesting == 1 &&
-           "Don't support nesting of calls since need to track first arg");
-  if (doArg_argno == 0)
-    assert(doArg_callNesting == 0 &&
-           "Don't support nesting of calls since need to track first arg");
-  p->x.argno = doArg_argno;  // Save number of arguments for a call
-  if (doArg_argno != 0) {
-    doArg_argno = 0;
-    doArg_callNesting -= 1;
-  }
+  p->syms[1] = p->syms[0];
+  p->syms[0] = intconst(argoffset);
+  if (argoffset > maxargoffset) maxargoffset = argoffset;
+  p->x.argno = argno;
+  argoffset = 0;
 }
 
 static Node I(gen)(Node forest) {
   Node q;
   Node dummy;
-  Node prev = NULL;
+  Node prev;
   struct node sentinel;
 
   assert(forest);
 
-  for (q = forest; q; q = q->link) {
+  for (prev = NULL, q = forest; q; q = q->link) {
     q = genDiscard(q);
     if (prev) {
       prev->link = q;
@@ -463,10 +516,24 @@ static Node I(gen)(Node forest) {
     else if (generic(q->op) == ARG)
       (*IR->x.doarg)(q);
 
-    _label(q);
-    reduce(q, 1);
     prev = q;
   }
+
+  for (prev = NULL, q = forest; q; q = q->link) {
+    Node newNode = genStartArg(q);
+    if (prev) {
+      prev->link = newNode;
+    } else {
+      forest = newNode;  // in case we replaced the start of the forest
+    }
+    prev = q;
+  }
+
+  for (q = forest; q; q = q->link) {
+    _label(q);
+    reduce(q, 1);
+  }
+
   for (q = forest; q; q = q->link) {
     prune(forest, &dummy);
   }
@@ -478,6 +545,7 @@ static Node I(gen)(Node forest) {
 
   forest = sentinel.x.next;
   assert(forest);
+
   sentinel.x.next->x.prev = NULL;
   sentinel.x.prev->x.next = NULL;
 
@@ -554,7 +622,7 @@ static void I(function)(Symbol f, Symbol caller[], Symbol callee[],
   // the stack. We now need to allocate space for locals and, if this function
   // makes any calls, save our FP to the data stack
   if (ncalls == 0) {
-      print("\tenterLeaf %d\n", framesize);
+    print("\tenterLeaf %d\n", framesize);
   } else {
     print("\tenter %d\n", framesize);
   }
@@ -628,11 +696,11 @@ static void I(defstring)(int len, char *str) {
 
 static void I(export)(Symbol p) { print(".global %s\n", p->x.name); }
 
-static void I(import)(Symbol p) { 
-  if(isfunc(p->type))
-  print(".externC %s\n", p->x.name); 
+static void I(import)(Symbol p) {
+  if (isfunc(p->type))
+    print(".externC %s\n", p->x.name);
   else
-  print(".externD %s\n", p->x.name); 
+    print(".externD %s\n", p->x.name);
 }
 
 static void I(global)(Symbol p) {

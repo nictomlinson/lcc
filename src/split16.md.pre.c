@@ -23,12 +23,13 @@ static int cvSrcSize(Node a);  // size of the source value of a CVxxx node
 static int isSeg(Node a, int seg); // true if ADDRGP symbol is in the segment
 static int isFunction(Node a);
 static int isNotFunction(Node a);
+static int isFcall(Node a);
 static int ifCost(int cond, int spaceCost, int timeCost);
 static int inRange(Node a, int lo, int hi);
 
 static void doarg(Node);
 
-enum { POP = 45 << 4 }; // one more than VREG but not sure why VREG is 44
+enum { POP = 45 << 4, ARGSTART = 46 <<4 }; // one more than VREG but not sure why VREG is 44
 #define IS_EVEN(v) (((v)&1)==0)
 static char *suffixes[] = {"0", "F", "D",  "C",  "S",  "I",  "U",  "P",
                            "V", "B", "10", "11", "12", "13", "14", "15"};

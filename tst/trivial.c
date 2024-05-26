@@ -1,3 +1,7 @@
+#ifndef __LCC__
+#define __fcall
+#endif
+
 #pragma xxxxx
 int *addrOfY;
 int *addr2OfY;
@@ -290,7 +294,10 @@ static struct {
 } someStruct = {'a', 15};
 static const char a_char_literal[] = "hello world";
 
-void ignoreReturnedStruct() { extGetStruct(1, 2); }
+void ignoreReturnedStruct() {
+  int i = 0;
+  extGetStruct(1, 2);
+}
 
 float constantFloat() { return 23.5; }
 
@@ -618,3 +625,12 @@ CNV(void_star_ptr, unsigned_long)
 CNV(void_star_ptr, unsigned_long_long)
 CNV(void_star_ptr, void_star_ptr)
 #endif
+
+static int __fcall fCallFunc(int a, int b) { return 1; }
+void callFCallFunc() { fCallFunc(7, 9); }
+extern int __fcall externfCallFunc(int a, int b);
+void callExternFCallFunc() { externfCallFunc(7, 9); }
+void fcallViaFPointer() {
+  int (*__fcall fp)(int a, int b) = fCallFunc;
+  fp(13, 15);
+}

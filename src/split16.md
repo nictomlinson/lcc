@@ -149,19 +149,23 @@
 %term POPF4=8913
 %term POPB=729
 
+%term ARGSTART=736
+
 
 %%
 stmt: v "%a"
 
-v: ARGI2(i) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGU2(u) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGP2(p) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGU4(u) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGI4(i) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGF4(f) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGU8(u) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGI8(i) "?\%I rpush.sp\n%0\n" genCost(1, 1)
-v: ARGF8(f) "?\%I rpush.sp\n%0\n" genCost(1, 1)
+stmt: ARGSTART "%I rpush.sp\n"
+
+v: ARGI2(i) "%0\n" genCost(1, 1)
+v: ARGU2(u) "%0\n" genCost(1, 1)
+v: ARGP2(p) "%0\n" genCost(1, 1)
+v: ARGU4(u) "%0\n" genCost(1, 1)
+v: ARGI4(i) "%0\n" genCost(1, 1)
+v: ARGF4(f) "%0\n" genCost(1, 1)
+v: ARGU8(u) "%0\n" genCost(1, 1)
+v: ARGI8(i) "%0\n" genCost(1, 1)
+v: ARGF8(f) "%0\n" genCost(1, 1)
 
 
 v: ASGNU1(p,u) "%0\n%1%Lstore.u8\n" genCost(1, 1)
@@ -388,14 +392,14 @@ u: BCOMU4(u) "%I rpush.sp\n%0%Lcall%Tbcom_32"
 u: BCOMU8(u) "%I rpush.sp\n%0%Lcall%Tbcom_64"
 
 
-f: DIVF4(f,f) "%I rpush.sp\n%0%Lcall%Tdiv_f32"
-f: DIVF8(f,f) "%I rpush.sp\n%0%Lcall%Tdiv_f64"
-i: DIVI2(i,i) "%I rpush.sp\n%0%Lcall%Tdiv_i16"
-u: DIVU2(u,u) "%I rpush.sp\n%0%Lcall%Tdiv_u16"
-i: DIVI4(i,i) "%I rpush.sp\n%0%Lcall%Tdiv_i32"
-u: DIVU4(u,u) "%I rpush.sp\n%0%Lcall%Tdiv_u32"
-i: DIVI8(i,i) "%I rpush.sp\n%0%Lcall%Tdiv_i64"
-u: DIVU8(u,u) "%I rpush.sp\n%0%Lcall%Tdiv_u64"
+f: DIVF4(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_f32"
+f: DIVF8(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_f64"
+i: DIVI2(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_i16"
+u: DIVU2(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_u16"
+i: DIVI4(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_i32"
+u: DIVU4(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_u32"
+i: DIVI8(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_i64"
+u: DIVU8(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tdiv_u64"
 
 
 f: MULF4(f,f) "%I rpush.sp\n%0\n%1%Lcall%Tmul_f32"
@@ -408,12 +412,12 @@ i: MULI8(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tmul_i64"
 u: MULU8(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tmul_u64"
 
 
-i: MODI2(i,i) "%I rpush.sp\n%0%Lcall%Tmod_i16"
-i: MODI4(i,i) "%I rpush.sp\n%0%Lcall%Tmod_i32"
-i: MODI8(i,i) "%I rpush.sp\n%0%Lcall%Tmod_i64"
-u: MODU2(u,u) "%I rpush.sp\n%0%Lcall%Tmod_u16"
-u: MODU4(u,u) "%I rpush.sp\n%0%Lcall%Tmod_u32"
-u: MODU8(u,u) "%I rpush.sp\n%0%Lcall%Tmod_u64"
+i: MODI2(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tmod_i16"
+i: MODI4(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tmod_i32"
+i: MODI8(i,i) "%I rpush.sp\n%0\n%1%Lcall%Tmod_i64"
+u: MODU2(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tmod_u16"
+u: MODU4(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tmod_u32"
+u: MODU8(u,u) "%I rpush.sp\n%0\n%1%Lcall%Tmod_u64"
 
 
 i: CNSTI1 "%Ipush.16%T%a" genCost(2, 1)
@@ -444,32 +448,34 @@ stmt: POPP1(p) "%0%Lpop.16\n"
 stmt: POPF2(f) "%0%Lpop.32\n"
 stmt: POPF4(f) "%0%Lpop.64\n"
 
-u: CALLU2(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-i: CALLI2(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-p: CALLP2(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-u: CALLU4(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-i: CALLI4(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-f: CALLF4(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-f: CALLF8(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-i: CALLI8(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
-u: CALLU8(p) "?%I rpush.sp\n%0%Lcall" genCost(0,0)
+u: CALLU2(p) "%0%Lcall" genCost(0,0)
+i: CALLI2(p) "%0%Lcall" genCost(0,0)
+p: CALLP2(p) "%0%Lcall" genCost(0,0)
+u: CALLU4(p) "%0%Lcall" genCost(0,0)
+i: CALLI4(p) "%0%Lcall" genCost(0,0)
+f: CALLF4(p) "%0%Lcall" genCost(0,0)
+f: CALLF8(p) "%0%Lcall" genCost(0,0)
+i: CALLI8(p) "%0%Lcall" genCost(0,0)
+u: CALLU8(p) "%0%Lcall" genCost(0,0)
 
-u: CALLU2(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-i: CALLI2(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-p: CALLP2(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-u: CALLU4(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-i: CALLI4(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-u: CALLU8(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-i: CALLI8(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-f: CALLF4(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
-f: CALLF8(g16) "?%I rpush.sp\n%Icall%Tpc[%0]" genCost(0,0)
+u: CALLU2(g16) "%Icall%Tpc[%0]" genCost(0,0)
+i: CALLI2(g16) "%Icall%Tpc[%0]" ifCost(!isFcall(a),0,0)
+p: CALLP2(g16) "%Icall%Tpc[%0]" genCost(0,0)
+u: CALLU4(g16) "%Icall%Tpc[%0]" genCost(0,0)
+i: CALLI4(g16) "%Icall%Tpc[%0]" genCost(0,0)
+u: CALLU8(g16) "%Icall%Tpc[%0]" genCost(0,0)
+i: CALLI8(g16) "%Icall%Tpc[%0]" genCost(0,0)
+f: CALLF4(g16) "%Icall%Tpc[%0]" genCost(0,0)
+f: CALLF8(g16) "%Icall%Tpc[%0]" genCost(0,0)
 
+
+i: CALLI2(g16) "%Icall%Tpc[%0] ; fcall" ifCost(isFcall(a),0,0)
 
 
 v: CALLB(p,p) "ERROR; Not expecting CALLB(p,p)\n" 100
 v: CALLB(g16,p) "ERROR; Not expecting CALLB(g16,p)\n" 100
-v: CALLV(p) "?%I rpush.sp\n%0%Lcall\n" 1
-v: CALLV(g16) "?%I rpush.sp\n%Icall%T%0\n" 0
+v: CALLV(p) "%0%Lcall\n" 1
+v: CALLV(g16) "%Icall%Tpc[%0]\n" 0
 
 u: INDIRU1(p) "%0%Lload.u8" 10
 i: INDIRI1(p) "%0%Lload.s8" 1
@@ -511,8 +517,8 @@ f: INDIRF8(ADDP2(p, conS16)) "%0%Lload.64%Ttos[%1]" genCost(3, 1)
 
 
 
-v: ARGB(INDIRB(p)) "?%I rpush.sp\n%0%LloadBytes%T%a\n" ifCost(a->x.argno==0, 4, 1)
-v: ARGB(INDIRB(p)) "?%I rpush.sp\n%0%LloadBytes%T%a\n" ifCost(a->x.argno!=0, 3, 1)
+v: ARGB(INDIRB(p)) "%0%LloadBytes%T%a\n" ifCost(a->x.argno==0, 4, 1)
+v: ARGB(INDIRB(p)) "%0%LloadBytes%T%a\n" ifCost(a->x.argno!=0, 3, 1)
 
 v: ASGNB(p,INDIRB(p)) "%0\n%1%Lmemcopy%T%a\n" ifCost(inRange(a, 0, 255), 2, 1)
 v: ASGNB(p,INDIRB(p)) "%0\n%1%Lmemcopy%T%a\n" genCost(3, 1)
