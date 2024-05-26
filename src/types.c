@@ -565,8 +565,8 @@ void outtype(Type ty, FILE *f) {
 		fprint(f, "pointer to %t", ty->type);
 		break;
 	case FUNCTION:
-		if(ty->u.f.fcall) 
-			fprint(f, "%t __fcall function", ty->type);
+		if(ty->u.f.asmcall) 
+			fprint(f, "%t __asmcall function", ty->type);
 		else
 			fprint(f, "%t function", ty->type);
 		if (ty->u.f.proto && ty->u.f.proto[0]) {

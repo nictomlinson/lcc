@@ -332,7 +332,7 @@ struct type {
 		Symbol sym;
 		struct {
 			unsigned oldstyle:1;
-                        unsigned fcall : 1;
+                        unsigned asmcall : 1;
                         Type *proto;
                 } f;
 	} u;

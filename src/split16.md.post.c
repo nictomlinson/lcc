@@ -11,11 +11,12 @@ static int isFunction(Node a) {
   return a->syms[0]->type && isfunc(a->syms[0]->type);
 }
 
-/* Determine if the function being called has the __fcall attribute */
-static int isFcall(Node a) {
-  assert(generic(a->op) == CALL);
-  return a->syms[0]->type && isfunc(a->syms[0]->type) &&
-         a->syms[0]->type->u.f.fcall;
+/* Determine if the function being called has the __asmcall attribute */
+static int isAsmCall(Node a) {
+  if(generic(a->op) == ARGSTART || generic(a->op) == CALL)
+    return a->syms[0]->type && isfunc(a->syms[0]->type) &&
+          a->syms[0]->type->u.f.asmcall;
+  return 0;
 }
 
 static int isNotFunction(Node a) {
@@ -270,7 +271,10 @@ static int getrule(Node p, int nt) {
   return rulenum;
 }
 
-static void emit2(Node p) { assert(0 && "Not expected emit2 to be used"); }
+static void emit2(Node p) { 
+  /* nothing to do here we 
+  */
+ }
 
 static int asmLinePos = 1;
 static void emitAsmAdvanceTo(int tabStop);
@@ -393,6 +397,10 @@ static Node findCall(Node p) {
   return NULL;
 }
 
+// Returns a new ARGSTART node linking to q if q is the first arg for a call
+// or a call with no args. Otherwise, returns q
+// An  ARGSTART node has syms[0] that points to a symbol whose only useful
+// attribute is type which is the type of the callee function 
 static Node genStartArg(Node q) {
   Node call = NULL, p, newNode, prev;
 
@@ -413,23 +421,19 @@ static Node genStartArg(Node q) {
     error("call not found for ARG or CALL\n");
     return q;
   }
-  if(call->syms[1] == NULL || call->syms[1]->type == NULL){
+  if(call->syms[0] == NULL || call->syms[0]->type == NULL){
     error("No type in sysm[1] for call\n");
     return q;
   }
-  if( !isfunc(call->syms[1]->type)){
+  if( !isfunc(call->syms[0]->type)){
     error("Type found for callee of call is not a function: %t\n",
-          call->syms[1]->type);
+          call->syms[0]->type);
     return q;
   }
   if(verbose)
-    print(".info Found callee type: %t\n", call->syms[1]->type);
+    print(".info Found callee type: %t\n", call->syms[0]->type);
 
-  if (call->syms[1]->type->u.f.fcall == 1) {
-    /* Don't save sp if the calling convention of callee is fcall */
-    return q;
-  }
-  newNode = newnode(ARGSTART, NULL, NULL, NULL);
+  newNode = newnode(ARGSTART, NULL, NULL, call->syms[0]);
   newNode->link = q;
   return newNode;
 }
@@ -485,8 +489,7 @@ static void doarg(Node p) {
 }
 
 static void docall(Node p) {
-  p->syms[1] = p->syms[0];
-  p->syms[0] = intconst(argoffset);
+  p->syms[1] = intconst(argoffset);
   if (argoffset > maxargoffset) maxargoffset = argoffset;
   p->x.argno = argno;
   argoffset = 0;

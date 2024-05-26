@@ -147,7 +147,7 @@ static void decl(Symbol (*dcl)(int, char *, Type, Coordinate *)) {
 	static char stop[] = { CHAR, STATIC, ID, 0 };
 
 	ty = specifier(&sclass);
-	if (t == ID || t == '*' || t == '(' || t == '[' || t == FCALL) {
+	if (t == ID || t == '*' || t == '(' || t == '[' || t == ASMCALL) {
 		char *id;
 		Coordinate pos;
 		id = NULL;
@@ -302,7 +302,7 @@ static Type dclr(Type basety, char **id, Symbol **params, int abstract) {
 		case FUNCTION:
 			basety = func(basety, ty->u.f.proto,
 				ty->u.f.oldstyle);
-			basety->u.f.fcall = ty->u.f.fcall;
+			basety->u.f.asmcall = ty->u.f.asmcall;
 			break;
 		case ARRAY:
 			basety = array(basety, ty->size, 0);
@@ -326,10 +326,10 @@ static Type tnode(int op, Type type) {
 }
 static Type dclr1(char **id, Symbol **params, int abstract) {
 	Type ty = NULL;
-	int fcall = 0;
+	int asmcall = 0;
 
-	if(t==FCALL){
-		fcall = 1;
+	if(t==ASMCALL){
+		asmcall = 1;
 		t = gettok();
 	}
 	switch (t) {
@@ -371,7 +371,7 @@ static Type dclr1(char **id, Symbol **params, int abstract) {
 		switch (t) {
 		case '(': t = gettok(); { Symbol *args;
 					  ty = tnode(FUNCTION, ty);
-					  ty->u.f.fcall = fcall;
+					  ty->u.f.asmcall = asmcall;
 					  enterscope();
 					  if (level > PARAM)
 					  	enterscope();

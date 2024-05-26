@@ -1,5 +1,5 @@
 #ifndef __LCC__
-#define __fcall
+#define __asmcall
 #endif
 
 #pragma xxxxx
@@ -39,6 +39,7 @@ typedef struct {
 byte aByte;
 
 void doNothing(void) {}
+void callDoNothing() { doNothing(); }
 int y;
 void (*doNothingFptr)(void) = doNothing;
 
@@ -626,11 +627,22 @@ CNV(void_star_ptr, unsigned_long_long)
 CNV(void_star_ptr, void_star_ptr)
 #endif
 
-static int __fcall fCallFunc(int a, int b) { return 1; }
-void callFCallFunc() { fCallFunc(7, 9); }
-extern int __fcall externfCallFunc(int a, int b);
-void callExternFCallFunc() { externfCallFunc(7, 9); }
-void fcallViaFPointer() {
-  int (*__fcall fp)(int a, int b) = fCallFunc;
+static int __asmcall asmCallFuncAB(int a, int b) { return 1; }
+static int __asmcall asmCallFunc(void) { return 1; }
+
+
+void callAsmCallFuncAB() { asmCallFuncAB(7, 9); }
+void callAsmCallFunc() { asmCallFunc(); }
+
+
+extern int __asmcall externAsmCallFunc(int a, int b);
+
+void callExternAsmCallFunc() { externAsmCallFunc(7, 9); }
+
+void asmCallViaFPointer() {
+  /* This does not currently work since the __asmcall attribute is not
+   retained for function pointers. That's fine for the time being
+   */
+  int (*__asmcall fp)(int a, int b) = asmCallFuncAB;
   fp(13, 15);
 }

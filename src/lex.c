@@ -685,14 +685,16 @@ int gettok(void) {
 				return FIRSTARG;
 			}
 			if (rcp[0] == '_'
-			&&  rcp[1] == 'f'
-			&&  rcp[2] == 'c'
-			&&  rcp[3] == 'a'
-			&&  rcp[4] == 'l'
-			&&  rcp[5] == 'l'
-			&& !(map[rcp[6]]&(DIGIT|LETTER))) {
-				cp = rcp + 6;
-				return FCALL;
+			&&  rcp[1] == 'a'
+			&&  rcp[2] == 's'
+			&&  rcp[3] == 'm'
+			&&  rcp[4] == 'c'
+			&&  rcp[5] == 'a'
+			&&  rcp[6] == 'l'
+			&&  rcp[7] == 'l'
+			&& !(map[rcp[8]]&(DIGIT|LETTER))) {
+				cp = rcp + 8;
+				return ASMCALL;
 			}
 			goto id;
 		default:

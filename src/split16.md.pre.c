@@ -23,7 +23,7 @@ static int cvSrcSize(Node a);  // size of the source value of a CVxxx node
 static int isSeg(Node a, int seg); // true if ADDRGP symbol is in the segment
 static int isFunction(Node a);
 static int isNotFunction(Node a);
-static int isFcall(Node a);
+static int isAsmCall(Node a);
 static int ifCost(int cond, int spaceCost, int timeCost);
 static int inRange(Node a, int lo, int hi);
 

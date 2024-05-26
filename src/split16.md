@@ -155,7 +155,8 @@
 %%
 stmt: v "%a"
 
-stmt: ARGSTART "%I rpush.sp\n"
+stmt: ARGSTART "%I rpush.sp\n" ifCost(!isAsmCall(a),1,1)
+stmt: ARGSTART "# Let emit2 ignore this\n" ifCost(isAsmCall(a),1,1)
 
 v: ARGI2(i) "%0\n" genCost(1, 1)
 v: ARGU2(u) "%0\n" genCost(1, 1)
@@ -458,18 +459,26 @@ f: CALLF8(p) "%0%Lcall" genCost(0,0)
 i: CALLI8(p) "%0%Lcall" genCost(0,0)
 u: CALLU8(p) "%0%Lcall" genCost(0,0)
 
-u: CALLU2(g16) "%Icall%Tpc[%0]" genCost(0,0)
-i: CALLI2(g16) "%Icall%Tpc[%0]" ifCost(!isFcall(a),0,0)
-p: CALLP2(g16) "%Icall%Tpc[%0]" genCost(0,0)
-u: CALLU4(g16) "%Icall%Tpc[%0]" genCost(0,0)
-i: CALLI4(g16) "%Icall%Tpc[%0]" genCost(0,0)
-u: CALLU8(g16) "%Icall%Tpc[%0]" genCost(0,0)
-i: CALLI8(g16) "%Icall%Tpc[%0]" genCost(0,0)
-f: CALLF4(g16) "%Icall%Tpc[%0]" genCost(0,0)
-f: CALLF8(g16) "%Icall%Tpc[%0]" genCost(0,0)
+u: CALLU2(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+i: CALLI2(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+p: CALLP2(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+u: CALLU4(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+i: CALLI4(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+u: CALLU8(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+i: CALLI8(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+f: CALLF4(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
+f: CALLF8(g16) "%Icall%Tpc[%0]" ifCost(!isAsmCall(a),0,0)
 
+u: CALLU2(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+i: CALLI2(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+p: CALLP2(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+u: CALLU4(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+i: CALLI4(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+u: CALLU8(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+i: CALLI8(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+f: CALLF4(g16) "%I%0" ifCost(isAsmCall(a),0,0)
+f: CALLF8(g16) "%I%0" ifCost(isAsmCall(a),0,0)
 
-i: CALLI2(g16) "%Icall%Tpc[%0] ; fcall" ifCost(isFcall(a),0,0)
 
 
 v: CALLB(p,p) "ERROR; Not expecting CALLB(p,p)\n" 100
