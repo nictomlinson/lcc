@@ -13,9 +13,9 @@ static int isFunction(Node a) {
 
 /* Determine if the function being called has the __asmcall attribute */
 static int isAsmCall(Node a) {
-  if(generic(a->op) == ARGSTART || generic(a->op) == CALL)
+  if (generic(a->op) == ARGSTART || generic(a->op) == CALL)
     return a->syms[0]->type && isfunc(a->syms[0]->type) &&
-          a->syms[0]->type->u.f.asmcall;
+           a->syms[0]->type->u.f.asmcall;
   return 0;
 }
 
@@ -271,10 +271,10 @@ static int getrule(Node p, int nt) {
   return rulenum;
 }
 
-static void emit2(Node p) { 
-  /* nothing to do here we 
-  */
- }
+static void emit2(Node p) {
+  /* nothing to do here we
+   */
+}
 
 static int asmLinePos = 1;
 static void emitAsmAdvanceTo(int tabStop);
@@ -323,8 +323,7 @@ static unsigned emitassembly(Node p, int nt) {
         // The standard code generator uses this "?" technique to discard moves
         // from a register and itself
         fmt++;
-        while (*fmt++ != '\n')
-          ;
+        while (*fmt++ != '\n');
       } else {
         fmt++;
       }
@@ -400,7 +399,7 @@ static Node findCall(Node p) {
 // Returns a new ARGSTART node linking to q if q is the first arg for a call
 // or a call with no args. Otherwise, returns q
 // An  ARGSTART node has syms[0] that points to a symbol whose only useful
-// attribute is type which is the type of the callee function 
+// attribute is type which is the type of the callee function
 static Node genStartArg(Node q) {
   Node call = NULL, p, newNode, prev;
 
@@ -421,17 +420,16 @@ static Node genStartArg(Node q) {
     error("call not found for ARG or CALL\n");
     return q;
   }
-  if(call->syms[0] == NULL || call->syms[0]->type == NULL){
+  if (call->syms[0] == NULL || call->syms[0]->type == NULL) {
     error("No type in sysm[1] for call\n");
     return q;
   }
-  if( !isfunc(call->syms[0]->type)){
+  if (!isfunc(call->syms[0]->type)) {
     error("Type found for callee of call is not a function: %t\n",
           call->syms[0]->type);
     return q;
   }
-  if(verbose)
-    print(".info Found callee type: %t\n", call->syms[0]->type);
+  if (verbose) print(".info Found callee type: %t\n", call->syms[0]->type);
 
   newNode = newnode(ARGSTART, NULL, NULL, call->syms[0]);
   newNode->link = q;
@@ -645,6 +643,9 @@ static void I(defsymbol)(Symbol p) {
     p->x.name = stringf("L_%d", genlabel(1));
   else if (p->generated)
     p->x.name = stringf("L_%s", p->name);
+  else if (p->type && isfunc(p->type) && unqual(p->type)->u.f.asmcall)
+    p->x.name =
+        stringf("%s", &p->name[p->name[0] == '_' && p->name[1] == '_' ? 2 : 0]);
   else if (p->scope == GLOBAL || p->sclass == EXTERN)
     p->x.name = stringf("_%s", p->name);
   else

@@ -239,6 +239,7 @@ static Symbol dclglobal(int sclass, char *id, Type ty, Coordinate *pos) {
 		} else {
 			p = install(id, &globals, GLOBAL, PERM);
 			p->sclass = sclass;
+			p->type = ty; /* allow interface function to use the type*/
 			(*IR->defsymbol)(p);
 		}
 		if (p->sclass != STATIC) {
@@ -326,7 +327,7 @@ static Type tnode(int op, Type type) {
 }
 static Type dclr1(char **id, Symbol **params, int abstract) {
 	Type ty = NULL;
-	int asmcall;
+	int asmcall = 0;
 
 	/*
 		This implementation of a function attribute works ok because it does
