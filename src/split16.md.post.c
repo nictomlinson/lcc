@@ -701,9 +701,9 @@ static void I(defstring)(int len, char *str) {
 static void I(export)(Symbol p) { print(".global %s\n", p->x.name); }
 
 static void I(import)(Symbol p) {
-  if (isfunc(p->type))
-    print(".externC %s\n", p->x.name);
-  else
+  if (isfunc(p->type)) {
+    if (!unqual(p->type)->u.f.asmcall) print(".externC %s\n", p->x.name);
+  } else
     print(".externD %s\n", p->x.name);
 }
 

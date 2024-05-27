@@ -537,7 +537,7 @@ v: ASGNB(p,INDIRB(p)) "%0\n%1%Lmemcopy%T%a\n" genCost(3, 1)
 
 p: ADDRFP2 "%Ipushea%Tfp[%a]" genCost(3, 1)
 p: ADDRLP2 "%Ipushea%Tfp[%a]" genCost(3, 1)
-p: ADDRGP2 "%Ipushea.16%T%a" genCost(3,1)
+p: ADDRGP2 "%Ipushea.16%Tpc[%a]"    genCost(3,1)
 
 p: ADDRFP2 "%Ipushea%Tfp[%a]" ifCost(inRange(a, -128, 127), 2, 1)
 p: ADDRLP2 "%Ipushea%Tfp[%a]" ifCost(inRange(a, -128, 127), 2, 1)
