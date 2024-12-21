@@ -32,6 +32,7 @@ extern int i1;
 extern int i2;
 
 typedef struct {
+  char junk[1237];
   int x;
   char c;
 } byte;
@@ -61,6 +62,16 @@ int addCharAndInt() {
   return i + c;
 }
 
+int singedCmp(int a, int b){
+  if (a < b) return 1;
+  return 0;
+}
+
+int unsignedCmp(unsigned int a, unsigned int b){
+  if (a < b) return 1;
+  return 0;
+}
+
 char bigOffset(char *s) { return s[65280U]; }
 
 int doNothingi2() { return 0; }
@@ -74,6 +85,12 @@ char localByteC() {
 
   return b.c;
 }
+
+char indirectByteC(byte *b) { return b->c; }
+
+void setIndirectByteC(byte *b) { b->c = 'x'; }
+void setIndirectByteArrayC(byte b[], int i) { b[i].c = 'x'; }
+
 
 void negate() { i1 = -i2; }
 static void staticFunction(void) {}
