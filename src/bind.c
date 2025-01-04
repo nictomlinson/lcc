@@ -14,6 +14,7 @@ xx(bytecode,     bytecodeIR) \
 xx(m1/magic1,           m1IR) \
 xx(adam/std,     adamStdIR) \
 xx(split16/std,     split16IR) \
+xx(hawk16/std,     hawk16IR) \
 xx(null,         nullIR)
 
 #undef xx

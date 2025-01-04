@@ -125,3 +125,10 @@ int simpleCallingFunc(int x, int y, int z) {
 }
 
 int doReturn() { return 117; }
+
+void doLoop() {
+  int i;
+  for (i = 25; i > 0; i++);
+}
+
+void doAdd(int a, int b) { int c = a + b;}
