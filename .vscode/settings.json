@@ -13,5 +13,6 @@
         "*.tcc": "c",
         "typeinfo": "c"
     },
-    "less.format.preserveNewLines": true
+    "less.format.preserveNewLines": true,
+    "makefile.configureOnOpen": false
 }
